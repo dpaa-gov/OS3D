@@ -1,7 +1,8 @@
 using Distributed
+using BenchmarkTools
 
 #add a few cores
-addprocs(2)
+addprocs(13)
 
 #load libraries
 @everywhere using SharedArrays
@@ -25,4 +26,4 @@ include("icp.jl") #main iterative closet point function
 filelist1 = readdir("femur/F_digitized/left", join = true)  #left bones with digitized landmarks and fracture margins
 filelist2 = readdir("femur/F_digitized/right", join = true) #right bones with digitized landmarks and fracture margins
 
-results = OMS(filelist1, filelist2)
+@btime results = OMS(filelist1, filelist2)
