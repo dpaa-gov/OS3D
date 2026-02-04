@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OS3D - Osteometric Sorting 3D</title>
+    <meta name="description" content="3D PLY model visualization, landmark placement, and mesh comparison analysis">
+    <link rel="icon" type="image/png" href="/favicon.ico">
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <img src="/images/logo.png" alt="OS3D Logo" class="logo-icon">
+                <h1>Osteometric Sorting 3D</h1>
+            </div>
+        </header>
+
+        <!-- Tab Navigation -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="landmarks">
+                <span class="tab-icon">📍</span>
+                Process
+            </button>
+            <button class="tab-btn" data-tab="analysis">
+                <span class="tab-icon">📊</span>
+                Analysis
+            </button>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Landmarks Tab -->
+            <section id="landmarks-tab" class="tab-content active">
+                <div class="landmarks-layout">
+                    <!-- Left Panel: Folder & Navigation -->
+                    <div class="panel left-panel">
+                        <div class="panel-section">
+                            <h3>Folder</h3>
+                            <div class="directory-browser">
+                                <input type="text" id="landmark-path" class="path-input"
+                                    placeholder="/path/to/ply/files" value="">
+                                <button id="landmark-browse-btn" class="btn btn-primary">Browse</button>
+                            </div>
+                            <button id="landmark-clear-btn" class="btn btn-secondary btn-full" disabled>Clear
+                                Folder</button>
+                        </div>
+
+                        <div class="panel-section">
+                            <h3>Model Navigation</h3>
+                            <div class="model-info">
+                                <span id="current-model-name">No model loaded</span>
+                                <span id="model-counter" class="counter">0 / 0</span>
+                            </div>
+                            <div class="nav-buttons">
+                                <button id="prev-model-btn" class="btn btn-secondary" disabled>← Back</button>
+                                <button id="next-model-btn" class="btn btn-secondary" disabled>Next →</button>
+                            </div>
+                        </div>
+
+                        <div class="panel-section">
+                            <h3>Landmarks</h3>
+                            <div id="landmark-list" class="landmark-list">
+                                <p class="placeholder-text">Click on the model to place landmarks</p>
+                            </div>
+                            <button id="reset-landmarks-btn" class="btn btn-warning btn-full" disabled>Reset
+                                Landmarks</button>
+                            <button id="detect-holes-btn" class="btn btn-secondary btn-full" disabled>🕳️ Detect
+                                Holes</button>
+                        </div>
+
+                        <div class="panel-section">
+                            <button id="global-save-btn" class="btn btn-success btn-full" disabled>
+                                💾 Save All
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Right Panel: 3D Viewer -->
+                    <div class="panel viewer-panel">
+                        <div id="viewer-container" class="viewer-container">
+                            <div class="viewer-placeholder">
+                                <span class="placeholder-icon">📦</span>
+                                <p>Select a folder to load PLY models</p>
+                            </div>
+                        </div>
+                        <div class="viewer-controls">
+                            <span class="control-hint">Left click: Place landmark | Right drag: Rotate | Scroll:
+                                Zoom</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Analysis Tab -->
+            <section id="analysis-tab" class="tab-content">
+                <div class="analysis-layout">
+                    <!-- Top: Directory Selection -->
+                    <div class="panel analysis-header">
+                        <div class="directory-browser">
+                            <input type="text" id="analysis-path" class="path-input" placeholder="/path/to/xyz/files">
+                            <button id="analysis-browse-btn" class="btn btn-primary">Browse</button>
+                            <button id="analysis-clear-btn" class="btn btn-secondary" disabled>Clear</button>
+                        </div>
+                    </div>
+
+                    <!-- Middle: File Lists & Controls -->
+                    <div class="file-lists-container">
+                        <div class="panel file-list-panel">
+                            <h3>Left Files <span id="left-count" class="badge">0</span></h3>
+                            <div id="left-files-list" class="file-list">
+                                <p class="placeholder-text">No files loaded</p>
+                            </div>
+                        </div>
+
+                        <div class="panel controls-panel">
+                            <div class="control-group">
+                                <label for="hausdorff-slider">Hausdorff Percentage</label>
+                                <input type="range" id="hausdorff-slider" min="0.1" max="1" step="0.05" value="1">
+                                <span id="hausdorff-value" class="slider-value">1</span>
+                            </div>
+                            <button id="run-comparison-btn" class="btn btn-primary btn-large" disabled>
+                                ▶️ Run Comparisons
+                            </button>
+                        </div>
+
+                        <div class="panel file-list-panel">
+                            <h3>Right Files <span id="right-count" class="badge">0</span></h3>
+                            <div id="right-files-list" class="file-list">
+                                <p class="placeholder-text">No files loaded</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom: Results Tables with Tabs -->
+                    <div class="panel results-panel">
+                        <div class="results-header">
+                            <h3>Results</h3>
+                            <div class="results-tabs">
+                                <button id="best-matches-tab-btn" class="results-tab-btn active">Best Matches</button>
+                                <button id="all-results-tab-btn" class="results-tab-btn">All Results</button>
+                            </div>
+                            <div class="results-actions">
+                                <button id="export-csv-btn" class="btn btn-secondary" disabled>📥 Export CSV</button>
+                                <button id="clear-results-btn" class="btn btn-warning" disabled>Clear Results</button>
+                            </div>
+                        </div>
+
+                        <!-- Best Matches Table -->
+                        <div id="best-matches-content" class="results-content active">
+                            <div class="table-container">
+                                <table id="best-matches-table" class="results-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Left Model</th>
+                                            <th>Right Model</th>
+                                            <th>Distance</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="best-matches-tbody">
+                                        <tr class="placeholder-row">
+                                            <td colspan="3">Run a comparison to see best matches</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- All Results Table -->
+                        <div id="all-results-content" class="results-content">
+                            <div class="table-container">
+                                <table id="results-table" class="results-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Left Model</th>
+                                            <th>Right Model</th>
+                                            <th>Distance</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="results-tbody">
+                                        <tr class="placeholder-row">
+                                            <td colspan="3">Run a comparison to see all results</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Directory Browser Modal -->
+        <div id="browser-modal" class="modal">
+            <div class="modal-content browser-modal-content">
+                <div class="modal-header">
+                    <h2>Browse Folder</h2>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="browser-path">
+                        <button id="parent-dir-btn" class="btn btn-secondary">↑ Parent</button>
+                        <input type="text" id="modal-current-path" class="path-input" value="/">
+                        <button id="go-to-path-btn" class="btn btn-secondary">Go</button>
+                    </div>
+                    <div id="directory-listing" class="directory-listing">
+                        <!-- Directory contents will be populated here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="select-directory-btn" class="btn btn-primary">Select This Folder</button>
+                    <button class="btn btn-secondary modal-cancel">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Modal -->
+        <div id="loading-modal" class="modal">
+            <div class="modal-content loading-modal-content">
+                <div class="loading-spinner"></div>
+                <h2 id="loading-title">Processing</h2>
+                <p id="loading-status">Processing...</p>
+                <div class="timer-display">
+                    <span class="timer-label">Elapsed Time:</span>
+                    <span id="elapsed-timer" class="timer-value">00:00</span>
+                </div>
+                <button id="stop-analysis-btn" class="btn btn-warning">⏹ Stop Analysis</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts (local copies for offline use) -->
+    <script src="/js/lib/three.min.js"></script>
+    <script src="/js/lib/OrbitControls.js"></script>
+    <script src="/js/lib/PLYLoader.js"></script>
+    <script src="/js/three_viewer.js?v=1"></script>
+    <script src="/js/landmarks.js?v=1"></script>
+    <script src="/js/app.js?v=1"></script>
+</body>
+
+</html>
