@@ -12,13 +12,24 @@ echo "Starting ICP server on port 8001..."
 nohup julia --project=. icp/server.jl > /tmp/icp_server.log 2>&1 &
 ICP_PID=$!
 
-# Wait for ICP server to be ready
+# Wait for ICP server to be ready (poll /status endpoint)
 echo "Waiting for ICP server to initialize..."
-sleep 10
+MAX_WAIT=120
+WAITED=0
+while [ $WAITED -lt $MAX_WAIT ]; do
+    if curl -s http://127.0.0.1:8001/status 2>/dev/null | grep -q '"ready":true'; then
+        echo "ICP server ready!"
+        break
+    fi
+    sleep 2
+    WAITED=$((WAITED + 2))
+    echo "  ...waiting ($WAITED seconds)"
+done
 
-# Check if ICP server is running
-if ! kill -0 $ICP_PID 2>/dev/null; then
-    echo "ERROR: ICP server failed to start"
+if [ $WAITED -ge $MAX_WAIT ]; then
+    echo "ERROR: ICP server failed to start within $MAX_WAIT seconds"
+    echo "Check /tmp/icp_server.log for errors"
+    kill $ICP_PID 2>/dev/null
     exit 1
 fi
 

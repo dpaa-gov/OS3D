@@ -3,7 +3,7 @@
 
 module Comparison
 
-export run_comparison, ComparisonResult, separate_left_right, get_xyz_files
+export run_comparison, ComparisonResult, separate_left_right, get_xyz_files, stop_comparison
 
 using HTTP
 using JSON3

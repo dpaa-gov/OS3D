@@ -131,6 +131,9 @@ OS3D/
 - [ ] Verify boundary detection works for fragmentary remains using EMU models
 - [ ] Convert old XYZRGB models to new XYZ format
 - [ ] Verify lowest distances to the boundaries are discarded in the Hausdorff distance
+- [ ] Package for standalone app
+  - Consider PackageCompiler.jl for compiled distribution
+  - Possibly maintain two branches: compiled vs. script-based
 
 ## License
 
