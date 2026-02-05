@@ -23,7 +23,11 @@ const app = {
         activeResultsTab: 'best', // 'best' or 'all'
         isRunning: false,
         startTime: null,
-        timerInterval: null
+        timerInterval: null,
+        // Pagination
+        allResultsPage: 1,
+        bestMatchesPage: 1,
+        resultsPerPage: 100
     },
     // Browser modal state
     browser: {
@@ -668,45 +672,113 @@ function computeBestMatches(results) {
 }
 
 function updateResultsTable(results) {
-    // Update All Results table
-    const allTbody = document.getElementById('results-tbody');
+    // Store results
+    app.analysis.results = results;
+
+    // Reset pagination
+    app.analysis.allResultsPage = 1;
+    app.analysis.bestMatchesPage = 1;
+
+    // Compute best matches
+    const bestMatches = computeBestMatches(results);
+    app.analysis.bestMatches = bestMatches;
+
+    // Render paginated tables
+    renderAllResultsPage();
+    renderBestMatchesPage();
+}
+
+function renderAllResultsPage() {
+    const results = app.analysis.results;
+    const page = app.analysis.allResultsPage;
+    const perPage = app.analysis.resultsPerPage;
+    const totalPages = Math.ceil(results.length / perPage);
+
+    const start = (page - 1) * perPage;
+    const end = Math.min(start + perPage, results.length);
+    const pageResults = results.slice(start, end);
+
+    const tbody = document.getElementById('results-tbody');
 
     if (results.length === 0) {
-        allTbody.innerHTML = `
+        tbody.innerHTML = `
             <tr class="placeholder-row">
                 <td colspan="3">Run a comparison to see all results</td>
             </tr>
         `;
+        updatePaginationControls('all', 0, 0, 0);
     } else {
-        allTbody.innerHTML = results.map(r => `
+        tbody.innerHTML = pageResults.map(r => `
             <tr>
                 <td>${r.leftFile}</td>
                 <td>${r.rightFile}</td>
                 <td>${r.distance}</td>
             </tr>
         `).join('');
+        updatePaginationControls('all', page, totalPages, results.length);
     }
+}
 
-    // Compute and update Best Matches table
-    const bestMatches = computeBestMatches(results);
-    app.analysis.bestMatches = bestMatches;
+function renderBestMatchesPage() {
+    const results = app.analysis.bestMatches;
+    const page = app.analysis.bestMatchesPage;
+    const perPage = app.analysis.resultsPerPage;
+    const totalPages = Math.ceil(results.length / perPage);
 
-    const bestTbody = document.getElementById('best-matches-tbody');
+    const start = (page - 1) * perPage;
+    const end = Math.min(start + perPage, results.length);
+    const pageResults = results.slice(start, end);
 
-    if (bestMatches.length === 0) {
-        bestTbody.innerHTML = `
+    const tbody = document.getElementById('best-matches-tbody');
+
+    if (results.length === 0) {
+        tbody.innerHTML = `
             <tr class="placeholder-row">
                 <td colspan="3">Run a comparison to see best matches</td>
             </tr>
         `;
+        updatePaginationControls('best', 0, 0, 0);
     } else {
-        bestTbody.innerHTML = bestMatches.map(r => `
+        tbody.innerHTML = pageResults.map(r => `
             <tr>
                 <td>${r.leftFile}</td>
                 <td>${r.rightFile}</td>
                 <td>${r.distance}</td>
             </tr>
         `).join('');
+        updatePaginationControls('best', page, totalPages, results.length);
+    }
+}
+
+function updatePaginationControls(tableType, page, totalPages, totalResults) {
+    const containerId = tableType === 'all' ? 'all-results-pagination' : 'best-matches-pagination';
+    let container = document.getElementById(containerId);
+
+    if (!container) return;
+
+    if (totalPages <= 1) {
+        container.innerHTML = totalResults > 0 ? `<span class="pagination-info">${totalResults} results</span>` : '';
+        return;
+    }
+
+    container.innerHTML = `
+        <button class="pagination-btn" onclick="goToPage('${tableType}', 1)" ${page === 1 ? 'disabled' : ''}>First</button>
+        <button class="pagination-btn" onclick="goToPage('${tableType}', ${page - 1})" ${page === 1 ? 'disabled' : ''}>Prev</button>
+        <span class="pagination-info">Page ${page} of ${totalPages} (${totalResults} results)</span>
+        <button class="pagination-btn" onclick="goToPage('${tableType}', ${page + 1})" ${page === totalPages ? 'disabled' : ''}>Next</button>
+        <button class="pagination-btn" onclick="goToPage('${tableType}', ${totalPages})" ${page === totalPages ? 'disabled' : ''}>Last</button>
+    `;
+}
+
+function goToPage(tableType, page) {
+    if (tableType === 'all') {
+        const totalPages = Math.ceil(app.analysis.results.length / app.analysis.resultsPerPage);
+        app.analysis.allResultsPage = Math.max(1, Math.min(page, totalPages));
+        renderAllResultsPage();
+    } else {
+        const totalPages = Math.ceil(app.analysis.bestMatches.length / app.analysis.resultsPerPage);
+        app.analysis.bestMatchesPage = Math.max(1, Math.min(page, totalPages));
+        renderBestMatchesPage();
     }
 }
 

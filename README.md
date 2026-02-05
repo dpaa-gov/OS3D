@@ -97,6 +97,8 @@ x y z L1        # landmark 1
 x y z L2        # landmark 2
 ```
 
+**File Naming Requirement**: For analysis, filenames must contain `left` or `right` (case-insensitive) to be sorted into the appropriate comparison group.
+
 ## Project Structure
 
 ```
@@ -125,6 +127,12 @@ OS3D/
 
 - ICP server: `/tmp/icp_server.log`
 - Genie app: `/tmp/genie.log` (when using nohup)
+
+## Citation
+
+If you use this software, please cite it as:
+
+> Lynch, J.J. 2026. OS3D. Osteometric Sorting 3D. Version 0.0.1. Defense POW/MIA Accounting Agency, Offutt AFB, NE.
 
 ## TODO
 
