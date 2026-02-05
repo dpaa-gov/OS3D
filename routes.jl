@@ -214,7 +214,7 @@ route("/api/analysis/files", method=POST) do
         return json(Dict("error" => "Invalid directory"))
     end
     
-    xyz_files = get_xyz_files(directory)
+    xyz_files = Comparison.get_xyz_files(directory)
     left_files, right_files = Comparison.separate_left_right(xyz_files)
     
     return json(Dict(
