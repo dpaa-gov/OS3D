@@ -43,7 +43,17 @@ document.addEventListener('DOMContentLoaded', () => {
     initLandmarksTab();
     initAnalysisTab();
     initBrowserModal();
+    initHeartbeat();
 });
+
+// ====== Heartbeat — keeps server alive while browser is open ======
+function initHeartbeat() {
+    const sendHeartbeat = () => {
+        fetch('/api/heartbeat', { method: 'POST' }).catch(() => { });
+    };
+    sendHeartbeat(); // Initial ping
+    setInterval(sendHeartbeat, 5000); // Every 5 seconds
+}
 
 // ====== Tab Navigation ======
 function initTabs() {
@@ -438,6 +448,21 @@ function initAnalysisTab() {
         sliderValue.textContent = slider.value;
     });
 
+    // Best matches count slider
+    const bestSlider = document.getElementById('best-matches-slider');
+    const bestSliderValue = document.getElementById('best-matches-value');
+    bestSlider.addEventListener('input', () => {
+        bestSliderValue.textContent = bestSlider.value;
+        // Recompute best matches from existing results
+        if (app.analysis.results && app.analysis.results.length > 0) {
+            const topN = parseInt(bestSlider.value);
+            const bestMatches = computeBestMatches(app.analysis.results, topN);
+            app.analysis.bestMatches = bestMatches;
+            app.analysis.bestMatchesPage = 1;
+            renderBestMatchesPage();
+        }
+    });
+
     // Run comparison button
     document.getElementById('run-comparison-btn').addEventListener('click', () => {
         runComparison();
@@ -621,47 +646,61 @@ function switchResultsTab(tab) {
     document.getElementById('all-results-content').classList.toggle('active', tab === 'all');
 }
 
-function computeBestMatches(results) {
+function computeBestMatches(results, topN = 1) {
     if (results.length === 0) return [];
 
-    // Find best match for each left file
+    // Find top-N best matches for each left file
     const bestForLeft = new Map();
     for (const r of results) {
-        const current = bestForLeft.get(r.leftFile);
-        if (!current || r.distance < current.distance) {
-            bestForLeft.set(r.leftFile, r);
+        if (!bestForLeft.has(r.leftFile)) {
+            bestForLeft.set(r.leftFile, []);
         }
+        bestForLeft.get(r.leftFile).push(r);
+    }
+    // Sort each left file's matches by distance and keep top-N
+    for (const [key, matches] of bestForLeft) {
+        matches.sort((a, b) => a.distance - b.distance);
+        bestForLeft.set(key, matches.slice(0, topN));
     }
 
-    // Find best match for each right file
+    // Find top-N best matches for each right file
     const bestForRight = new Map();
     for (const r of results) {
-        const current = bestForRight.get(r.rightFile);
-        if (!current || r.distance < current.distance) {
-            bestForRight.set(r.rightFile, r);
+        if (!bestForRight.has(r.rightFile)) {
+            bestForRight.set(r.rightFile, []);
         }
+        bestForRight.get(r.rightFile).push(r);
+    }
+    // Sort each right file's matches by distance and keep top-N
+    for (const [key, matches] of bestForRight) {
+        matches.sort((a, b) => a.distance - b.distance);
+        bestForRight.set(key, matches.slice(0, topN));
     }
 
     // Combine and deduplicate
-    // If left's best is right and right's best is left, only include once
+    // If left's best includes right and right's best includes the same left, only include once
     const bestMatches = [];
     const addedPairs = new Set();
 
     // Add best matches for left files
-    for (const r of bestForLeft.values()) {
-        const pairKey = `${r.leftFile}|${r.rightFile}`;
-        if (!addedPairs.has(pairKey)) {
-            bestMatches.push(r);
-            addedPairs.add(pairKey);
+    for (const matches of bestForLeft.values()) {
+        for (const r of matches) {
+            const pairKey = `${r.leftFile}|${r.rightFile}`;
+            if (!addedPairs.has(pairKey)) {
+                bestMatches.push(r);
+                addedPairs.add(pairKey);
+            }
         }
     }
 
     // Add best matches for right files (if not already added)
-    for (const r of bestForRight.values()) {
-        const pairKey = `${r.leftFile}|${r.rightFile}`;
-        if (!addedPairs.has(pairKey)) {
-            bestMatches.push(r);
-            addedPairs.add(pairKey);
+    for (const matches of bestForRight.values()) {
+        for (const r of matches) {
+            const pairKey = `${r.leftFile}|${r.rightFile}`;
+            if (!addedPairs.has(pairKey)) {
+                bestMatches.push(r);
+                addedPairs.add(pairKey);
+            }
         }
     }
 
@@ -679,8 +718,9 @@ function updateResultsTable(results) {
     app.analysis.allResultsPage = 1;
     app.analysis.bestMatchesPage = 1;
 
-    // Compute best matches
-    const bestMatches = computeBestMatches(results);
+    // Compute best matches using slider value
+    const topN = parseInt(document.getElementById('best-matches-slider').value);
+    const bestMatches = computeBestMatches(results, topN);
     app.analysis.bestMatches = bestMatches;
 
     // Render paginated tables

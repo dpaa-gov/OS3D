@@ -18,6 +18,7 @@
                 <img src="/images/logo.png" alt="OS3D Logo" class="logo-icon">
                 <h1>Osteometric Sorting 3D</h1>
             </div>
+            <span class="version-badge">v0.1.0</span>
         </header>
 
         <!-- Tab Navigation -->
@@ -145,6 +146,11 @@
                                 <button id="all-results-tab-btn" class="results-tab-btn">All Results</button>
                             </div>
                             <div class="results-actions">
+                                <div class="control-group control-group-inline">
+                                    <label for="best-matches-slider">Best Matches</label>
+                                    <input type="range" id="best-matches-slider" min="1" max="20" step="1" value="1">
+                                    <span id="best-matches-value" class="slider-value">1</span>
+                                </div>
                                 <button id="export-csv-btn" class="btn btn-secondary" disabled>📥 Export CSV</button>
                                 <button id="clear-results-btn" class="btn btn-warning" disabled>Clear Results</button>
                             </div>

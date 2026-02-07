@@ -58,6 +58,7 @@ body {
 .header {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 1rem;
     padding: 1rem 2rem;
     background: var(--bg-glass);
@@ -84,6 +85,18 @@ body {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+}
+
+.version-badge {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 2px 8px;
+    align-self: center;
+    letter-spacing: 0.5px;
 }
 
 /* ====== Tab Navigation ====== */
@@ -574,6 +587,34 @@ input[type="range"]::-webkit-slider-thumb:hover {
 .results-actions {
     display: flex;
     gap: 0.5rem;
+    align-items: center;
+}
+
+.control-group-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-align: left;
+}
+
+.control-group-inline label {
+    display: inline;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 0;
+    white-space: nowrap;
+}
+
+.control-group-inline input[type="range"] {
+    width: 100px;
+}
+
+.control-group-inline .slider-value {
+    display: inline;
+    font-size: 0.9rem;
+    margin-top: 0;
+    min-width: 1.5em;
+    text-align: center;
 }
 
 .table-container {

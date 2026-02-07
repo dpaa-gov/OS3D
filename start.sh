@@ -45,8 +45,30 @@ echo "  - ICP Server: http://127.0.0.1:8001"
 echo ""
 echo "Press Ctrl+C to stop both servers"
 
-# Handle Ctrl+C
-trap "echo 'Stopping...'; kill $ICP_PID $GENIE_PID 2>/dev/null; exit 0" SIGINT SIGTERM
+# Cleanup function — kills both servers and all child processes
+cleanup() {
+    echo "Stopping OS3D..."
+    kill $ICP_PID $GENIE_PID 2>/dev/null
+    # Also kill any worker processes spawned by ICP server
+    pkill -P $ICP_PID 2>/dev/null
+    wait $ICP_PID $GENIE_PID 2>/dev/null
+    echo "Stopped."
+    exit 0
+}
 
-# Wait for processes
-wait
+# Handle Ctrl+C
+trap cleanup SIGINT SIGTERM
+
+# Monitor both processes — if either exits, kill the other
+# This ensures closing the browser (heartbeat timeout) shuts everything down
+while true; do
+    if ! kill -0 $GENIE_PID 2>/dev/null; then
+        echo "Genie app exited — shutting down ICP server..."
+        cleanup
+    fi
+    if ! kill -0 $ICP_PID 2>/dev/null; then
+        echo "ICP server exited — shutting down Genie app..."
+        cleanup
+    fi
+    sleep 2
+done

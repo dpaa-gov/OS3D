@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=OS3D
+Comment=Osteometric Sorting 3D
+Exec=bash -c 'cd "$(dirname "$(readlink -f "%k")")" && ./os3d.sh'
+Icon=os3d
+Terminal=false
+Type=Application
+Categories=Science;Education;
+StartupNotify=true

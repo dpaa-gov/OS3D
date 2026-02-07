@@ -3,10 +3,22 @@
 
 using Distributed
 
-# Add workers first (N-2: 1 for this server, 1 left open)
-n_workers = max(1, Sys.CPU_THREADS - 2)
-addprocs(n_workers)
-@info "ICP Server: Added $n_workers worker processes"
+# Add workers: N-2 (1 for this server, 1 left open), capped at 64 to prevent
+# memory bandwidth saturation and NUMA effects on high-core-count systems
+n_workers = min(max(1, Sys.CPU_THREADS - 2), 64)
+
+# Use sysimage for workers if available (dramatically faster startup)
+project_dir = dirname(@__DIR__)
+sysimage_ext = Sys.iswindows() ? "dll" : Sys.isapple() ? "dylib" : "so"
+sysimage_path = joinpath(project_dir, "dist", "os3d_sysimage.$sysimage_ext")
+
+if isfile(sysimage_path)
+    @info "Using sysimage for workers: $sysimage_path"
+    addprocs(n_workers, exeflags=["--project=$project_dir", "-J$sysimage_path"])
+else
+    @info "No sysimage found — workers will use JIT compilation"
+    addprocs(n_workers, exeflags=["--project=$project_dir"])
+end
 
 # Load packages on workers
 @everywhere using SharedArrays

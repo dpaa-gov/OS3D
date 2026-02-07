@@ -7,6 +7,11 @@ using .HoleDetection
 comparison_running = Ref(false)
 comparison_results = Ref{Vector{ComparisonResult}}(ComparisonResult[])
 
+# Heartbeat monitoring — auto-shutdown when browser closes
+const HEARTBEAT_TIMEOUT = 15.0  # seconds without heartbeat before shutdown
+last_heartbeat = Ref(Base.time())
+heartbeat_active = Ref(false)  # only start monitoring after first heartbeat
+
 # Serve main page
 route("/") do
     html(read(joinpath(@__DIR__, "views", "index.html"), String))
@@ -279,4 +284,31 @@ end
 # Check comparison status
 route("/api/analysis/status", method=GET) do
     return json(Dict("running" => comparison_running[]))
+end
+
+# Heartbeat endpoint — called by frontend every 5 seconds
+route("/api/heartbeat", method=POST) do
+    last_heartbeat[] = Base.time()
+    if !heartbeat_active[]
+        heartbeat_active[] = true
+        @info "Heartbeat monitoring activated — will auto-shutdown when browser closes"
+        # Start the monitor task
+        @async begin
+            while true
+                sleep(5)
+                if heartbeat_active[] && (Base.time() - last_heartbeat[] > HEARTBEAT_TIMEOUT)
+                    @info "No heartbeat for $(HEARTBEAT_TIMEOUT)s — browser closed, shutting down..."
+                    # Signal ICP server to stop
+                    try
+                        HTTP.post("http://127.0.0.1:8001/stop"; connect_timeout=2, readtimeout=2)
+                    catch
+                        # ICP server may already be down
+                    end
+                    # Force-kill this process (exit() gets caught by Genie's event loop)
+                    ccall(:exit, Cvoid, (Cint,), 0)
+                end
+            end
+        end
+    end
+    return json(Dict("ok" => true))
 end

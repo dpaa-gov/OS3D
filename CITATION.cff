@@ -4,7 +4,7 @@ authors:
   - family-names: "Lynch"
     given-names: "J.J."
 title: "OS3D: Osteometric Sorting 3D"
-version: 0.0.1
+version: 0.1.0
 date-released: 2026
 url: "https://github.com/dpaa/os3d"
 institution:
@@ -16,7 +16,7 @@ preferred-citation:
     - family-names: "Lynch"
       given-names: "J.J."
   title: "OS3D. Osteometric Sorting 3D"
-  version: 0.0.1
+  version: 0.1.0
   year: 2026
   institution:
     name: "Defense POW/MIA Accounting Agency, Offutt AFB, NE"
