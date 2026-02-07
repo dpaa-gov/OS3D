@@ -40,6 +40,31 @@ REM Start Genie app in background (with window title for cleanup)
 echo Starting Genie app on port 8000...
 start "OS3D Genie App" /MIN julia --project=. app.jl
 
+REM Wait for Genie app to be ready
+echo Waiting for Genie app to initialize...
+set GENIE_WAITED=0
+set GENIE_MAX_WAIT=120
+
+:genie_wait_loop
+if %GENIE_WAITED% GEQ %GENIE_MAX_WAIT% goto genie_timeout
+
+curl -s http://127.0.0.1:8000/ >nul 2>&1
+if %ERRORLEVEL% EQU 0 goto genie_ready
+
+timeout /t 2 /nobreak >nul
+set /a GENIE_WAITED=%GENIE_WAITED%+2
+echo   ...waiting (%GENIE_WAITED% seconds)
+goto genie_wait_loop
+
+:genie_timeout
+echo ERROR: Genie app failed to start within %GENIE_MAX_WAIT% seconds
+taskkill /FI "WINDOWTITLE eq OS3D Genie App" /F >nul 2>&1
+taskkill /FI "WINDOWTITLE eq OS3D ICP Server" /F >nul 2>&1
+exit /b 1
+
+:genie_ready
+echo Genie app ready!
+
 echo.
 echo OS3D is running!
 echo   - Web UI: http://127.0.0.1:8000
@@ -49,10 +74,17 @@ echo Servers will auto-shutdown when you close the browser.
 echo Press Ctrl+C to stop manually.
 
 REM Monitor: when Genie exits (heartbeat timeout), kill ICP server
+REM Require 3 consecutive failures to avoid false shutdowns
+set FAIL_COUNT=0
 :monitor_loop
 timeout /t 3 /nobreak >nul
 curl -s http://127.0.0.1:8000/ >nul 2>&1
-if errorlevel 1 goto shutdown
+if errorlevel 1 (
+    set /a FAIL_COUNT=%FAIL_COUNT%+1
+    if %FAIL_COUNT% GEQ 3 goto shutdown
+) else (
+    set FAIL_COUNT=0
+)
 goto monitor_loop
 
 :shutdown

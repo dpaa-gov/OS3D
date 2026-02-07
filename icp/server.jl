@@ -86,6 +86,12 @@ end
 
 function handle_stop(req::HTTP.Request)
     running_comparison[] = false
+    @info "ICP server received stop signal — shutting down..."
+    # Schedule exit after response is sent
+    @async begin
+        sleep(1)
+        ccall(:exit, Cvoid, (Cint,), 0)
+    end
     return HTTP.Response(200, ["Content-Type" => "application/json"],
         body=JSON3.write(Dict("stopped" => true)))
 end

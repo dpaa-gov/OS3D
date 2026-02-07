@@ -45,7 +45,8 @@ Pre-built bundles include Julia, all dependencies, and a precompiled sysimage �
 
 Download the latest release for your platform:
 - `OS3D-v0.1.0-linux-x86_64.tar.gz` (Linux)
-- Windows and macOS builds coming soon
+- `OS3D-v0.1.0-windows-x86_64.zip` (Windows)
+- macOS build coming soon
 
 ### Run
 
@@ -56,7 +57,19 @@ cd OS3D-v0.1.0-linux-x86_64
 ./os3d.sh
 ```
 
+```cmd
+REM Windows — extract the zip, then:
+os3d.bat
+```
+
 The app will start both servers and open in a browser window automatically. Closing the browser will automatically shut down the servers.
+
+> **Note:** The ICP server takes 20–60 seconds to initialize (loading workers). Only launch once — do not double-click the launcher multiple times.
+
+**Launch options:**
+
+- **Console visible** (for debugging / viewing logs): `os3d.sh` (Linux) · `os3d.bat` (Windows)
+- **Console hidden** (normal use, double-click): `OS3D.desktop` (Linux) · `OS3D.vbs` (Windows)
 
 ---
 
@@ -73,7 +86,7 @@ For developers who want to run from source or contribute.
 
 ```bash
 cd OS3D
-julia --project=. -e 'using Pkg; Pkg.instantiate()'
+julia --project=. -e "using Pkg; Pkg.instantiate()"
 ```
 
 ### Run (Development Mode)
@@ -233,8 +246,20 @@ If you use this software, please cite it as:
 - [ ] Verify boundary detection works for fragmentary remains using EMU models
 - [ ] Convert old XYZRGB models to new XYZ format
 - [ ] Verify lowest distances to the boundaries are discarded in the Hausdorff distance
-- [ ] Windows standalone bundle (test on VM)
 - [ ] macOS standalone bundle
+- [ ] ICP: Avoid rebuilding KD-tree every iteration in `matching!()` (`point_to_plane.jl`)
+- [ ] ICP: Batch boundary filtering with `Set` instead of row-by-row matrix copies (`fragment_landmarks.jl`)
+- [ ] ICP: Reuse fixed point cloud PointCloud/normals/KDTree across pairs in `OMS_worker` (`icp.jl`)
+- [ ] ICP: Pre-allocate vertex matrix in XYZ parser instead of `Vector{Vector}` conversion (`xyz_reader.jl`)
+- [ ] ICP: Gate `@info` logging behind a verbose flag to reduce I/O contention
+
+### Windows (Untested)
+
+Windows scripts and launchers exist but are **not fully tested**. Known issues:
+- [ ] PLY model loading fails (likely backslash path handling in routes)
+- [ ] File saving fails (path separator issues)
+- [ ] App randomly shuts down during use (curl-based monitor loop false positives)
+- [ ] Audit all file path handling in `routes.jl` and `lib/` for Windows `\` vs `/` compatibility
 
 ## License
 

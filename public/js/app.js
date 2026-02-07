@@ -896,7 +896,19 @@ function initBrowserModal() {
     // Parent directory button
     document.getElementById('parent-dir-btn').addEventListener('click', () => {
         const currentPath = app.browser.currentPath;
-        const parentPath = currentPath.split('/').slice(0, -1).join('/') || '/';
+        // Handle both Unix (/) and Windows (\) separators
+        const sep = currentPath.includes('\\') ? '\\' : '/';
+        const parts = currentPath.split(sep).filter(p => p !== '');
+        parts.pop();
+        let parentPath = parts.join(sep);
+        // Preserve root: Unix '/' or Windows 'C:\'
+        if (sep === '/') {
+            parentPath = '/' + parentPath;
+        } else if (parts.length === 1) {
+            parentPath = parts[0] + '\\';
+        } else if (parts.length === 0) {
+            return; // Already at root
+        }
         browseDirectory(parentPath);
     });
 
@@ -920,12 +932,21 @@ function initBrowserModal() {
     });
 }
 
-function openBrowserModal(inputElement, onSelect) {
+async function openBrowserModal(inputElement, onSelect) {
     app.browser.targetInput = inputElement;
     app.browser.onSelect = onSelect;
 
-    // Start from input value or home directory
-    const startPath = inputElement.value || '/home';
+    // Start from input value or user's home directory
+    let startPath = inputElement.value;
+    if (!startPath) {
+        try {
+            const resp = await fetch('/api/homedir');
+            const data = await resp.json();
+            startPath = data.path || '/';
+        } catch {
+            startPath = '/';
+        }
+    }
 
     document.getElementById('browser-modal').classList.add('active');
     browseDirectory(startPath);

@@ -93,6 +93,11 @@ route("/api/mesh/boundaries", method=POST) do
     end
 end
 
+# Get user's home directory (cross-platform)
+route("/api/homedir") do
+    return json(Dict("path" => homedir()))
+end
+
 # Browse directories
 route("/api/browse", method=POST) do
     data = jsonpayload()
@@ -105,14 +110,19 @@ route("/api/browse", method=POST) do
     entries = []
     try
         for name in readdir(path)
-            full_path = joinpath(path, name)
-            entry = Dict(
-                "name" => name,
-                "path" => full_path,
-                "isDirectory" => isdir(full_path),
-                "isMesh" => isfile(full_path) && lowercase(splitext(name)[2]) == ".ply"
-            )
-            push!(entries, entry)
+            try
+                full_path = joinpath(path, name)
+                entry = Dict(
+                    "name" => name,
+                    "path" => full_path,
+                    "isDirectory" => isdir(full_path),
+                    "isMesh" => isfile(full_path) && lowercase(splitext(name)[2]) == ".ply"
+                )
+                push!(entries, entry)
+            catch
+                # Skip inaccessible files (e.g. locked system files on Windows)
+                continue
+            end
         end
     catch e
         return json(Dict("error" => string(e), "entries" => []))

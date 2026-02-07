@@ -108,10 +108,17 @@ echo Servers will auto-shutdown when you close the browser.
 echo Press Ctrl+C to stop manually.
 
 REM Monitor: when Genie exits (heartbeat timeout), kill ICP server
+REM Require 3 consecutive failures to avoid false shutdowns
+set FAIL_COUNT=0
 :monitor_loop
 timeout /t 3 /nobreak >nul
 curl -s http://127.0.0.1:8000/ >nul 2>&1
-if errorlevel 1 goto shutdown
+if errorlevel 1 (
+    set /a FAIL_COUNT=%FAIL_COUNT%+1
+    if %FAIL_COUNT% GEQ 3 goto shutdown
+) else (
+    set FAIL_COUNT=0
+)
 goto monitor_loop
 
 :shutdown
