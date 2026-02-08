@@ -2,6 +2,33 @@
  * OS3D - Main Application Logic
  */
 
+// ====== Notification Sound ======
+function playCompletionChime() {
+    try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        const ctx = new AudioCtx();
+        const gain = ctx.createGain();
+        gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0.25, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.8);
+
+        const playTone = (freq, start, dur) => {
+            const osc = ctx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, start);
+            osc.connect(gain);
+            osc.start(start);
+            osc.stop(start + dur);
+        };
+
+        playTone(523.25, ctx.currentTime, 0.2);        // C5
+        playTone(659.25, ctx.currentTime + 0.15, 0.2); // E5
+        playTone(783.99, ctx.currentTime + 0.3, 0.4);  // G5
+    } catch (e) {
+        // Audio not available — silently ignore
+    }
+}
+
 // Global state
 const app = {
     // Landmarks tab state
@@ -288,7 +315,6 @@ async function detectHoles() {
     document.getElementById('loading-title').textContent = 'Detecting Holes';
     document.getElementById('loading-status').textContent = 'Analyzing mesh boundaries...';
     document.getElementById('elapsed-timer').textContent = '00:00';
-    document.getElementById('stop-analysis-btn').style.display = 'none';
 
     // Start timer
     app.analysis.startTime = Date.now();
@@ -306,7 +332,6 @@ async function detectHoles() {
         // Hide loading modal
         stopTimer();
         document.getElementById('loading-modal').classList.remove('active');
-        document.getElementById('stop-analysis-btn').style.display = '';
 
         if (data.error) {
             alert('Error detecting holes: ' + data.error);
@@ -329,7 +354,6 @@ async function detectHoles() {
         // Hide loading modal on error
         stopTimer();
         document.getElementById('loading-modal').classList.remove('active');
-        document.getElementById('stop-analysis-btn').style.display = '';
         console.error('Error detecting holes:', error);
         alert('Failed to detect holes');
     }
@@ -387,7 +411,6 @@ async function saveAllLandmarks() {
     document.getElementById('loading-title').textContent = 'Saving Files';
     document.getElementById('loading-status').textContent = 'Saving files to processed folder...';
     document.getElementById('elapsed-timer').textContent = '00:00';
-    document.getElementById('stop-analysis-btn').style.display = 'none';
 
     // Start timer
     app.analysis.startTime = Date.now();
@@ -408,7 +431,6 @@ async function saveAllLandmarks() {
         // Hide loading modal and stop timer
         stopTimer();
         document.getElementById('loading-modal').classList.remove('active');
-        document.getElementById('stop-analysis-btn').style.display = '';
 
         if (data.success) {
             alert(`Saved ${data.saved.length} files to processed/ folder as .xyz`);
@@ -420,7 +442,6 @@ async function saveAllLandmarks() {
         // Hide loading modal on error
         stopTimer();
         document.getElementById('loading-modal').classList.remove('active');
-        document.getElementById('stop-analysis-btn').style.display = '';
         console.error('Error saving landmarks:', error);
         alert('Failed to save landmarks');
     }
@@ -466,11 +487,6 @@ function initAnalysisTab() {
     // Run comparison button
     document.getElementById('run-comparison-btn').addEventListener('click', () => {
         runComparison();
-    });
-
-    // Stop analysis button
-    document.getElementById('stop-analysis-btn').addEventListener('click', () => {
-        stopAnalysis();
     });
 
     // Export CSV button
@@ -581,6 +597,9 @@ async function runComparison() {
 
             document.getElementById('export-csv-btn').disabled = false;
             document.getElementById('clear-results-btn').disabled = false;
+
+            // Play notification chime on successful completion
+            playCompletionChime();
         }
 
     } catch (error) {
@@ -593,17 +612,6 @@ async function runComparison() {
     }
 }
 
-async function stopAnalysis() {
-    try {
-        await fetch('/api/analysis/stop', { method: 'POST' });
-    } catch (error) {
-        console.error('Error stopping analysis:', error);
-    }
-
-    hideLoadingModal();
-    stopTimer();
-    app.analysis.isRunning = false;
-}
 
 function showLoadingModal() {
     document.getElementById('loading-modal').classList.add('active');

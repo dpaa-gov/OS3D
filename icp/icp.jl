@@ -9,7 +9,7 @@ include("fragment_landmarks.jl")
 include("alignment_landmarks.jl")
 
 # Worker function for distributed OMS comparison
-@everywhere function OMS_worker(filelist1_path::String, filelist2::Vector{String}, k::Int)
+@everywhere function OMS_worker(filelist1_path::String, filelist2::Vector{String}, k::Int; hausdorff_percentile::Float64=0.95)
     # Load fixed point cloud using new format
     data_fix = read_xyz(filelist1_path)
     
@@ -22,7 +22,7 @@ include("alignment_landmarks.jl")
         co = Int(round(size(data_fix.vertices, 1) * 0.2))
         
         # Run simplified ICP
-        MDH = simpleicp_new(data_fix, data_mov, correspondences=co)
+        MDH = simpleicp_new(data_fix, data_mov, correspondences=co, hausdorff_percentile=hausdorff_percentile)
         
         Results[i, 1] = k
         Results[i, 2] = i
@@ -33,13 +33,13 @@ include("alignment_landmarks.jl")
 end
 
 # Main distributed OMS function  
-function OMS(filelist1::Vector{String}, filelist2::Vector{String})
+function OMS(filelist1::Vector{String}, filelist2::Vector{String}, hausdorff_percentile::Float64=0.95)
     n1 = length(filelist1)
     n2 = length(filelist2)
     Results = SharedArray{Float64}(n2 * n1, 3)
     
     @sync @distributed for k in 1:n1
-        Results[((k * n2) - n2 + 1):(k * n2), :] = OMS_worker(filelist1[k], filelist2, k)
+        Results[((k * n2) - n2 + 1):(k * n2), :] = OMS_worker(filelist1[k], filelist2, k; hausdorff_percentile=hausdorff_percentile)
     end
     
     return Results

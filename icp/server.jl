@@ -44,13 +44,13 @@ function handle_compare(req::HTTP.Request)
         data = JSON3.read(String(req.body))
         left_files = convert(Vector{String}, data.leftFiles)
         right_files = convert(Vector{String}, data.rightFiles)
-        percentage = get(data, :percentage, 0.95)
+        percentage = Float64(get(data, :percentage, 0.95))
         
         running_comparison[] = true
         @info "Starting comparison: $(length(left_files)) × $(length(right_files))"
         
         # Run distributed OMS
-        raw_results = OMS(left_files, right_files)
+        raw_results = OMS(left_files, right_files, percentage)
         
         running_comparison[] = false
         

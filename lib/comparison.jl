@@ -3,7 +3,7 @@
 
 module Comparison
 
-export run_comparison, ComparisonResult, separate_left_right, get_xyz_files, stop_comparison
+export run_comparison, ComparisonResult, separate_left_right, get_xyz_files
 
 using HTTP
 using JSON3
@@ -70,13 +70,6 @@ function run_comparison(left_files::Vector{String}, right_files::Vector{String},
     return results
 end
 
-function stop_comparison()
-    try
-        HTTP.post("$ICP_SERVER_URL/stop")
-    catch
-        # Ignore errors
-    end
-end
 
 function separate_left_right(files::Vector{String})
     left = filter(f -> contains(lowercase(basename(f)), "left."), files)

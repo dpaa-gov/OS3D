@@ -9,14 +9,14 @@
     --text-primary: #f0f2f5;
     --text-secondary: #a0a8b8;
     --text-muted: #6b7280;
-    --accent-primary: #6366f1;
-    --accent-secondary: #818cf8;
-    --accent-glow: rgba(99, 102, 241, 0.3);
+    --accent-primary: #2563eb;
+    --accent-secondary: #3b82f6;
+    --accent-glow: rgba(37, 99, 235, 0.3);
     --success: #10b981;
     --warning: #f59e0b;
     --danger: #ef4444;
     --border-color: rgba(255, 255, 255, 0.12);
-    --border-glow: rgba(99, 102, 241, 0.5);
+    --border-glow: rgba(37, 99, 235, 0.5);
     --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.3);
     --radius-sm: 6px;
     --radius-md: 10px;

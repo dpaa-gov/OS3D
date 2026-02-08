@@ -245,7 +245,7 @@ route("/api/analysis/run", method=POST) do
     data = jsonpayload()
     left_files = get(data, "leftFiles", String[])
     right_files = get(data, "rightFiles", String[])
-    percentage = get(data, "percentage", 0.5)
+    percentage = get(data, "percentage", 0.95)
     
     if isempty(left_files) || isempty(right_files)
         return json(Dict("error" => "Need both left and right files"))
@@ -284,12 +284,7 @@ route("/api/analysis/run", method=POST) do
     end
 end
 
-# Stop comparison
-route("/api/analysis/stop", method=POST) do
-    stop_comparison()
-    comparison_running[] = false
-    return json(Dict("stopped" => true))
-end
+
 
 # Check comparison status
 route("/api/analysis/status", method=GET) do
