@@ -3,9 +3,9 @@
 
 module PLYHandler
 
-export read_ply_binary, write_xyz_with_landmarks, copy_to_processed, get_ply_files, get_xyz_files, create_processed_dir
+export read_ply_binary, write_xyz_with_landmarks, copy_to_processed, get_ply_files, create_processed_dir
 
-using JSON3
+
 
 """
 Helper to get type size in bytes for PLY property types
@@ -257,21 +257,6 @@ function get_ply_files(directory::String)
     files = readdir(directory, join=true)
     ply_files = filter(f -> isfile(f) && lowercase(splitext(f)[2]) == ".ply", files)
     return sort(ply_files)
-end
-
-"""
-    get_xyz_files(directory::String) -> Vector{String}
-
-Get all XYZ files in a directory (non-recursive).
-"""
-function get_xyz_files(directory::String)
-    if !isdir(directory)
-        return String[]
-    end
-    
-    files = readdir(directory, join=true)
-    xyz_files = filter(f -> isfile(f) && endswith(lowercase(f), ".xyz"), files)
-    return sort(xyz_files)
 end
 
 end # module

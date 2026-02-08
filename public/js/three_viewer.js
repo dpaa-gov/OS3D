@@ -365,12 +365,7 @@ class ThreeViewer {
         this.boundaryIndices = [];
     }
 
-    /**
-     * Get current boundary indices
-     */
-    getBoundaryIndices() {
-        return this.boundaryIndices;
-    }
+
 
     dispose() {
         if (this.renderer) {

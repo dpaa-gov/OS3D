@@ -1,6 +1,6 @@
 using Genie
 using Genie.Router
-using Genie.Renderer.Html
+
 using Genie.Renderer.Json
 using Genie.Requests
 using HTTP
