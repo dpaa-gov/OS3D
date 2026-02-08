@@ -30,7 +30,7 @@ class ThreeViewer {
 
         // Scene setup
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x0a0e17);
+        this.scene.background = new THREE.Color(0x1a1f2e);
 
         // Camera setup
         const width = this.container.clientWidth;
@@ -62,7 +62,7 @@ class ThreeViewer {
         directionalLight1.position.set(1, 1, 1);
         this.scene.add(directionalLight1);
 
-        const directionalLight2 = new THREE.DirectionalLight(0x6366f1, 0.4);
+        const directionalLight2 = new THREE.DirectionalLight(0x2563eb, 0.4);
         directionalLight2.position.set(-1, -1, -1);
         this.scene.add(directionalLight2);
 
@@ -227,7 +227,7 @@ class ThreeViewer {
     addLandmarkSphere(x, y, z, index) {
         const geometry = new THREE.SphereGeometry(1, 16, 16);
         const material = new THREE.MeshBasicMaterial({
-            color: 0x6366f1,
+            color: 0x2563eb,
             transparent: true,
             opacity: 0.9
         });
@@ -244,7 +244,7 @@ class ThreeViewer {
         canvas.width = 64;
         canvas.height = 64;
 
-        context.fillStyle = '#6366f1';
+        context.fillStyle = '#2563eb';
         context.beginPath();
         context.arc(32, 32, 30, 0, 2 * Math.PI);
         context.fill();

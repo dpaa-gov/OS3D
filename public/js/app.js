@@ -494,10 +494,6 @@ function initAnalysisTab() {
         exportResultsCSV();
     });
 
-    // Clear results button
-    document.getElementById('clear-results-btn').addEventListener('click', () => {
-        clearResults();
-    });
 
     // Results tab buttons
     document.getElementById('best-matches-tab-btn').addEventListener('click', () => {
@@ -596,7 +592,6 @@ async function runComparison() {
             updateResultsTable(data.results);
 
             document.getElementById('export-csv-btn').disabled = false;
-            document.getElementById('clear-results-btn').disabled = false;
 
             // Play notification chime on successful completion
             playCompletionChime();
@@ -873,7 +868,6 @@ function clearResults() {
     app.analysis.bestMatches = [];
     updateResultsTable([]);
     document.getElementById('export-csv-btn').disabled = true;
-    document.getElementById('clear-results-btn').disabled = true;
 }
 
 function clearAnalysisDirectory() {
