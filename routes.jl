@@ -310,8 +310,8 @@ route("/api/heartbeat", method=POST) do
                     catch
                         # ICP server may already be down
                     end
-                    # Force-kill this process (exit() gets caught by Genie's event loop)
-                    ccall(:exit, Cvoid, (Cint,), 0)
+                    # Force-kill: _exit() bypasses atexit handlers that can hang with sysimage
+                    ccall(:_exit, Cvoid, (Cint,), 0)
                 end
             end
         end

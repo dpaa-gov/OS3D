@@ -1,5 +1,11 @@
 # Osteometric Sorting 3D (OS3D) v0.1.0
 
+![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![Julia](https://img.shields.io/badge/Julia-1.11+-9558B2?logo=julia&logoColor=white)
+![Linux](https://img.shields.io/badge/Linux-tested-success?logo=linux&logoColor=white)
+![Windows](https://img.shields.io/badge/Windows-partial-yellow?logo=windows&logoColor=white)
+![macOS](https://img.shields.io/badge/macOS-untested-lightgrey?logo=apple&logoColor=white)
+
 A web-based application for 3D mesh visualization, anatomical landmarking, and osteometric comparison analysis using ICP (Iterative Closest Point) registration.
 
 ## Features
@@ -253,13 +259,19 @@ If you use this software, please cite it as:
 - [ ] ICP: Pre-allocate vertex matrix in XYZ parser instead of `Vector{Vector}` conversion (`xyz_reader.jl`)
 - [ ] ICP: Gate `@info` logging behind a verbose flag to reduce I/O contention
 
-### Windows (Untested)
+- [ ] Verify packaged Windows bundle shuts down Julia processes after browser close (same `_exit` fix)
 
-Windows scripts and launchers exist but are **not fully tested**. Known issues:
-- [ ] PLY model loading fails (likely backslash path handling in routes)
-- [ ] File saving fails (path separator issues)
-- [ ] App randomly shuts down during use (curl-based monitor loop false positives)
-- [ ] Audit all file path handling in `routes.jl` and `lib/` for Windows `\` vs `/` compatibility
+### Windows (Partially Tested)
+
+Windows scripts and launchers exist and have been tested on a Windows VM. Core functionality works:
+- ✅ PLY model loading (cross-platform path handling)
+- ✅ File saving (path separator fixes)
+- ✅ PID-based process monitoring (replaced unreliable curl/window-title approaches)
+- ✅ Browse dialog starts at user's home directory
+
+Remaining:
+- [ ] Occasional app shutdown on VM — needs bare-metal Windows testing to confirm if VM-related
+- [ ] Audit all file path handling in `routes.jl` and `lib/` for edge cases with Windows `\` vs `/`
 
 ## License
 

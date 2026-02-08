@@ -89,8 +89,21 @@ function handle_stop(req::HTTP.Request)
     @info "ICP server received stop signal — shutting down..."
     # Schedule exit after response is sent
     @async begin
-        sleep(1)
-        ccall(:exit, Cvoid, (Cint,), 0)
+        sleep(0.5)
+        # Force-kill each worker by OS PID (rmprocs races with _exit)
+        for w in workers()
+            try
+                pid = remotecall_fetch(getpid, w)
+                if Sys.iswindows()
+                    run(`taskkill /F /PID $pid`, wait=false)
+                else
+                    run(`kill -9 $pid`, wait=false)
+                end
+            catch end
+        end
+        sleep(0.5)
+        # _exit() bypasses atexit handlers that can hang with sysimage
+        ccall(:_exit, Cvoid, (Cint,), 0)
     end
     return HTTP.Response(200, ["Content-Type" => "application/json"],
         body=JSON3.write(Dict("stopped" => true)))
