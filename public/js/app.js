@@ -262,7 +262,7 @@ function updateModelInfo() {
     const files = app.landmarks.plyFiles;
     const index = app.landmarks.currentIndex;
 
-    const filename = files[index] ? files[index].split('/').pop() : 'No model loaded';
+    const filename = files[index] ? files[index].split(/[/\\]/).pop() : 'No model loaded';
     document.getElementById('current-model-name').textContent = filename;
     document.getElementById('model-counter').textContent = `${index + 1} / ${files.length}`;
 }
@@ -310,11 +310,11 @@ async function detectHoles() {
 
     const filepath = files[app.landmarks.currentIndex];
 
-    // Show loading modal
-    document.getElementById('loading-modal').classList.add('active');
+    // Show loading modal — set text before making visible
     document.getElementById('loading-title').textContent = 'Detecting Holes';
     document.getElementById('loading-status').textContent = 'Analyzing mesh boundaries...';
     document.getElementById('elapsed-timer').textContent = '00:00';
+    document.getElementById('loading-modal').classList.add('active');
 
     // Start timer
     app.analysis.startTime = Date.now();
@@ -331,7 +331,7 @@ async function detectHoles() {
 
         // Hide loading modal
         stopTimer();
-        document.getElementById('loading-modal').classList.remove('active');
+        hideLoadingModal();
 
         if (data.error) {
             alert('Error detecting holes: ' + data.error);
@@ -353,7 +353,7 @@ async function detectHoles() {
     } catch (error) {
         // Hide loading modal on error
         stopTimer();
-        document.getElementById('loading-modal').classList.remove('active');
+        hideLoadingModal();
         console.error('Error detecting holes:', error);
         alert('Failed to detect holes');
     }
@@ -406,11 +406,11 @@ async function saveAllLandmarks() {
         return;
     }
 
-    // Show loading modal (without stop button for save operations)
-    document.getElementById('loading-modal').classList.add('active');
+    // Show loading modal — set text before making visible
     document.getElementById('loading-title').textContent = 'Saving Files';
     document.getElementById('loading-status').textContent = 'Saving files to processed folder...';
     document.getElementById('elapsed-timer').textContent = '00:00';
+    document.getElementById('loading-modal').classList.add('active');
 
     // Start timer
     app.analysis.startTime = Date.now();
@@ -430,7 +430,7 @@ async function saveAllLandmarks() {
 
         // Hide loading modal and stop timer
         stopTimer();
-        document.getElementById('loading-modal').classList.remove('active');
+        hideLoadingModal();
 
         if (data.success) {
             alert(`Saved ${data.saved.length} files to processed/ folder as .xyz`);
@@ -441,7 +441,7 @@ async function saveAllLandmarks() {
     } catch (error) {
         // Hide loading modal on error
         stopTimer();
-        document.getElementById('loading-modal').classList.remove('active');
+        hideLoadingModal();
         console.error('Error saving landmarks:', error);
         alert('Failed to save landmarks');
     }
@@ -550,7 +550,7 @@ function updateFileList(elementId, files) {
     }
 
     list.innerHTML = files.map(file => `
-        <div class="file-item" title="${file}">${file.split('/').pop()}</div>
+        <div class="file-item" title="${file}">${file.split(/[/\\]/).pop()}</div>
     `).join('');
 }
 
@@ -609,16 +609,20 @@ async function runComparison() {
 
 
 function showLoadingModal() {
-    document.getElementById('loading-modal').classList.add('active');
+    // Reset text BEFORE making modal visible to prevent stale time flash
     document.getElementById('loading-title').textContent = 'Running Comparisons';
     document.getElementById('loading-status').textContent = 'Processing comparisons...';
+    document.getElementById('elapsed-timer').textContent = '00:00';
+    document.getElementById('loading-modal').classList.add('active');
 }
 
 function hideLoadingModal() {
     document.getElementById('loading-modal').classList.remove('active');
+    document.getElementById('elapsed-timer').textContent = '00:00';
 }
 
 function startTimer() {
+    stopTimer(); // Clear any stale timer from a previous operation
     const timerEl = document.getElementById('elapsed-timer');
 
     app.analysis.timerInterval = setInterval(() => {
@@ -996,7 +1000,7 @@ function renderDirectoryListing(entries) {
 
     listing.innerHTML = entries.map(entry => `
         <div class="dir-entry" data-path="${entry.path}" data-is-dir="${entry.isDirectory}">
-            <span class="dir-entry-icon">${entry.isDirectory ? '📁' : (entry.isPly ? '📦' : '📄')}</span>
+            <span class="dir-entry-icon">${entry.isDirectory ? '📁' : (entry.isMesh ? '📦' : '📄')}</span>
             <span class="dir-entry-name">${entry.name}</span>
         </div>
     `).join('');

@@ -2,6 +2,7 @@
 REM OS3D Launcher for Windows
 REM Starts the ICP server and Genie web app, then opens in browser app mode.
 REM This script is meant for the standalone distribution bundle.
+REM Uses PID-based monitoring for reliable process tracking.
 
 cd /d "%~dp0"
 
@@ -34,9 +35,15 @@ if exist "%SYSIMAGE%" (
     echo No sysimage found — using JIT compilation (slower startup)
 )
 
-REM Start ICP server in background (with window title for cleanup)
+REM --- Start ICP server and capture its PID ---
 echo Starting ICP server on port 8001...
-start "OS3D ICP Server" /MIN "%JULIA%" %JULIA_FLAGS% "%~dp0icp\server.jl"
+set "ICP_PID="
+for /f %%a in ('powershell -NoProfile -Command "(Start-Process \"%JULIA%\" -ArgumentList '%JULIA_FLAGS% \"%~dp0icp\server.jl\"' -WindowStyle Minimized -PassThru).Id"') do set "ICP_PID=%%a"
+if not defined ICP_PID (
+    echo WARNING: Could not capture ICP server PID
+) else (
+    echo   ICP PID: %ICP_PID%
+)
 
 REM Wait for ICP server
 echo Waiting for ICP server to initialize...
@@ -54,27 +61,43 @@ goto icp_wait
 
 :icp_timeout
 echo ERROR: ICP server failed to start within %MAX_WAIT% seconds
-taskkill /FI "WINDOWTITLE eq OS3D ICP Server" /F >nul 2>&1
+if defined ICP_PID taskkill /PID %ICP_PID% /F >nul 2>&1
 pause
 exit /b 1
 
 :icp_ready
 echo ICP server ready!
 
-REM Start Genie app in background (with window title for cleanup)
+REM --- Start Genie app and capture its PID ---
 echo Starting Genie web app on port 8000...
-start "OS3D Genie App" /MIN "%JULIA%" %JULIA_FLAGS% "%~dp0app.jl"
+set "GENIE_PID="
+for /f %%a in ('powershell -NoProfile -Command "(Start-Process \"%JULIA%\" -ArgumentList '%JULIA_FLAGS% \"%~dp0app.jl\"' -WindowStyle Minimized -PassThru).Id"') do set "GENIE_PID=%%a"
+if not defined GENIE_PID (
+    echo WARNING: Could not capture Genie app PID
+) else (
+    echo   Genie PID: %GENIE_PID%
+)
 
 REM Wait for Genie
 echo Waiting for web app...
-set WAITED=0
+set GENIE_WAITED=0
+set GENIE_MAX_WAIT=120
+
 :genie_wait
-if %WAITED% GEQ 60 goto genie_ready
+if %GENIE_WAITED% GEQ %GENIE_MAX_WAIT% goto genie_timeout
 curl -s http://127.0.0.1:8000/ >nul 2>&1
 if %ERRORLEVEL% EQU 0 goto genie_ready
 timeout /t 2 /nobreak >nul
-set /a WAITED=%WAITED%+2
+set /a GENIE_WAITED=%GENIE_WAITED%+2
+echo   ...waiting (%GENIE_WAITED% seconds)
 goto genie_wait
+
+:genie_timeout
+echo ERROR: Genie app failed to start within %GENIE_MAX_WAIT% seconds
+if defined GENIE_PID taskkill /PID %GENIE_PID% /F >nul 2>&1
+if defined ICP_PID taskkill /PID %ICP_PID% /F >nul 2>&1
+pause
+exit /b 1
 
 :genie_ready
 set "URL=http://127.0.0.1:8000"
@@ -104,25 +127,19 @@ echo OS3D is running!
 echo   Web UI: %URL%
 echo   ICP Server: http://127.0.0.1:8001
 echo.
-echo Servers will auto-shutdown when you close the browser.
 echo Press Ctrl+C to stop manually.
 
-REM Monitor: when Genie exits (heartbeat timeout), kill ICP server
-REM Require 3 consecutive failures to avoid false shutdowns
-set FAIL_COUNT=0
+REM --- Monitor: check if Genie PID is still alive ---
 :monitor_loop
-timeout /t 3 /nobreak >nul
-curl -s http://127.0.0.1:8000/ >nul 2>&1
-if errorlevel 1 (
-    set /a FAIL_COUNT=%FAIL_COUNT%+1
-    if %FAIL_COUNT% GEQ 3 goto shutdown
-) else (
-    set FAIL_COUNT=0
+timeout /t 5 /nobreak >nul
+if defined GENIE_PID (
+    tasklist /FI "PID eq %GENIE_PID%" 2>nul | findstr /I "julia.exe" >nul
+    if errorlevel 1 (
+        echo.
+        echo Genie app exited — shutting down ICP server...
+        if defined ICP_PID taskkill /PID %ICP_PID% /F >nul 2>&1
+        echo Stopped.
+        goto :eof
+    )
 )
 goto monitor_loop
-
-:shutdown
-echo.
-echo Genie app exited — shutting down ICP server...
-taskkill /FI "WINDOWTITLE eq OS3D ICP Server" /F >nul 2>&1
-echo Stopped.

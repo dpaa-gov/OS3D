@@ -14,16 +14,17 @@ heartbeat_active = Ref(false)  # only start monitoring after first heartbeat
 
 # Serve main page
 route("/") do
-    html(read(joinpath(@__DIR__, "views", "index.html"), String))
+    Genie.Renderer.respond(read(joinpath(@__DIR__, "views", "index.html"), String), "text/html")
 end
 
 # Serve favicon
 route("/favicon.ico") do
     filepath = joinpath(@__DIR__, "public", "images", "favicon.png")
     if isfile(filepath)
-        return HTTP.Response(200, 
-            ["Content-Type" => "image/png"],
-            body = read(filepath))
+        return Genie.Renderer.respond(
+            read(filepath, String),
+            "image/png"
+        )
     end
     return Genie.Renderer.respond("Not found", 404)
 end

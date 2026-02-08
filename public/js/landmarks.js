@@ -88,6 +88,8 @@ class LandmarkManager {
     getAllFilesData() {
         const data = [];
         for (const [filepath, landmarks] of this.landmarksPerFile) {
+            // Only include files that have landmarks placed
+            if (landmarks.length === 0) continue;
             data.push({
                 filepath: filepath,
                 landmarks: landmarks,
