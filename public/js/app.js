@@ -235,6 +235,12 @@ async function loadCurrentModel() {
         updateModelInfo();
         updateLandmarkList();
         updateNavigationButtons();
+
+        // Re-apply boundary highlights if previously detected
+        const storedBoundaries = app.landmarks.manager.getCurrentBoundaries();
+        if (storedBoundaries.length > 0) {
+            app.landmarks.viewer.highlightBoundaryVertices(storedBoundaries);
+        }
     } finally {
         app.landmarks.isLoading = false;
     }

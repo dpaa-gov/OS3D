@@ -149,6 +149,34 @@ The bundle includes the Julia runtime, sysimage, all packages, and app source �
 
 ---
 
+## Data Preparation (Artec Studio)
+
+When scanning bones with Artec Studio, follow these steps to prepare models for OS3D:
+
+1. **Start with Real-Time Fusion models** — use the real-time fusion output from each scan as your starting point. This saves significant processing time compared to building meshes from raw frames.
+2. **Stitch fusion models** — if multiple scans are needed, align and stitch the real-time fusion models together.
+3. **Edit fracture margins** — after creating the final mesh, manually edit the fracture margins (broken edges) using Artec Studio's mesh editing tools. Clean, well-defined margins are required for OS3D's boundary detection to work correctly.
+4. **Export as PLY** — export the final mesh as a binary PLY file for use in OS3D.
+
+> **Important:** If fracture margins are not properly cleaned up in Artec Studio, the automatic boundary detection in OS3D may miss edges or produce inaccurate results.
+
+---
+
+## Example Data
+
+Sample PLY files are included in `test/example_data/` for testing:
+
+```
+test/example_data/
+├── test1_right.ply
+├── test2_left.ply
+└── test3_left.ply
+```
+
+Use these to verify the landmarking, boundary detection, and ICP comparison workflows.
+
+---
+
 ## Usage
 
 ### Process Tab
@@ -176,7 +204,7 @@ The comparison uses point-to-plane ICP with the following features:
 - **Percentile-based**: Uses the Nth percentile (default 95th) instead of true maximum for robustness to outliers
 
 ### Boundary Handling
-Boundary vertices (detected holes/fragment edges) are excluded from the distance calculation:
+Boundary vertices (detected holes/fragment edges) are expanded by one ring of mesh neighbors for conservative margin detection. These are excluded from the distance calculation:
 - Boundary points are **excluded as measurement sources**
 - Correspondences **to boundary points are ignored**
 

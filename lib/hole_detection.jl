@@ -186,6 +186,9 @@ function detect_boundary_vertices(filepath::String)
     # Edge is represented as sorted tuple of vertex indices
     edge_count = Dict{Tuple{Int,Int}, Int}()
     
+    # Also build vertex adjacency map for neighbor expansion
+    vertex_neighbors = Dict{Int, Set{Int}}()
+    
     for face in faces
         n = length(face)
         for i in 1:n
@@ -193,6 +196,16 @@ function detect_boundary_vertices(filepath::String)
             v2 = face[i % n + 1]  # Next vertex (wraps around)
             edge = v1 < v2 ? (v1, v2) : (v2, v1)
             edge_count[edge] = get(edge_count, edge, 0) + 1
+            
+            # Track mesh adjacency
+            if !haskey(vertex_neighbors, v1)
+                vertex_neighbors[v1] = Set{Int}()
+            end
+            if !haskey(vertex_neighbors, v2)
+                vertex_neighbors[v2] = Set{Int}()
+            end
+            push!(vertex_neighbors[v1], v2)
+            push!(vertex_neighbors[v2], v1)
         end
     end
     
@@ -205,8 +218,20 @@ function detect_boundary_vertices(filepath::String)
         end
     end
     
+    # Expand boundary by including 1-ring mesh neighbors of each boundary vertex
+    # This ensures a thicker, more continuous margin for conservative detection
+    expanded = Set{Int}()
+    for v in boundary_vertices
+        push!(expanded, v)
+        if haskey(vertex_neighbors, v)
+            for neighbor in vertex_neighbors[v]
+                push!(expanded, neighbor)
+            end
+        end
+    end
+    
     # Return sorted list (already 0-indexed from PLY file)
-    return sort(collect(boundary_vertices))
+    return sort(collect(expanded))
 end
 
 """

@@ -18,8 +18,8 @@ class ThreeViewer {
         this.onLandmarkPlaced = null;
         this.isInitialized = false;
         // Boundary visualization
-        this.boundaryPoints = null;
         this.boundaryIndices = [];
+        this.originalVertexColors = false;
     }
 
     init() {
@@ -54,17 +54,17 @@ class ThreeViewer {
             RIGHT: THREE.MOUSE.ROTATE
         };
 
-        // Lighting
-        const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+        // Lighting — two opposing directions for depth without washing out
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
         this.scene.add(ambientLight);
 
-        const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight1.position.set(1, 1, 1);
-        this.scene.add(directionalLight1);
+        const light1 = new THREE.DirectionalLight(0xffffff, 0.8);
+        light1.position.set(1, 1, 1);
+        this.scene.add(light1);
 
-        const directionalLight2 = new THREE.DirectionalLight(0x2563eb, 0.4);
-        directionalLight2.position.set(-1, -1, -1);
-        this.scene.add(directionalLight2);
+        const light2 = new THREE.DirectionalLight(0xffffff, 0.5);
+        light2.position.set(-1, -1, -1);
+        this.scene.add(light2);
 
         // Grid removed for cleaner visualization
 
@@ -306,7 +306,7 @@ class ThreeViewer {
     }
 
     /**
-     * Highlight boundary vertices in the model
+     * Highlight boundary vertices by coloring them directly on the mesh
      * @param {Array} indices - 0-indexed vertex indices to highlight
      */
     highlightBoundaryVertices(indices) {
@@ -315,52 +315,67 @@ class ThreeViewer {
 
         if (!this.model || !indices || indices.length === 0) return;
 
-        const positions = this.model.geometry.getAttribute('position');
+        const geometry = this.model.geometry;
+        const positions = geometry.getAttribute('position');
         if (!positions) return;
 
-        // Create geometry for boundary points
-        const boundaryPositions = new Float32Array(indices.length * 3);
-        let validCount = 0;
+        const vertexCount = positions.count;
 
-        for (let i = 0; i < indices.length; i++) {
-            const idx = indices[i];
-            if (idx >= 0 && idx < positions.count) {
-                boundaryPositions[validCount * 3] = positions.getX(idx);
-                boundaryPositions[validCount * 3 + 1] = positions.getY(idx);
-                boundaryPositions[validCount * 3 + 2] = positions.getZ(idx);
-                validCount++;
+        // Create color attribute if it doesn't exist
+        if (!geometry.getAttribute('color')) {
+            const colors = new Float32Array(vertexCount * 3);
+            // Default: bone ivory color (0xf5e6d3)
+            const boneR = 0xf5 / 255, boneG = 0xe6 / 255, boneB = 0xd3 / 255;
+            for (let i = 0; i < vertexCount; i++) {
+                colors[i * 3] = boneR;
+                colors[i * 3 + 1] = boneG;
+                colors[i * 3 + 2] = boneB;
             }
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
         }
 
-        if (validCount === 0) return;
+        const colorAttr = geometry.getAttribute('color');
 
-        // Create points geometry
-        const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute('position', new THREE.BufferAttribute(
-            boundaryPositions.slice(0, validCount * 3), 3
-        ));
+        // Set boundary vertex colors to amber/orange (0xf59e0b)
+        const highlightR = 0xf5 / 255, highlightG = 0x9e / 255, highlightB = 0x0b / 255;
 
-        // Create material with distinctive color (orange-red)
-        const material = new THREE.PointsMaterial({
-            color: 0xff6b35,
-            size: 4,
-            sizeAttenuation: true
-        });
+        const indexSet = new Set(indices);
+        for (const idx of indexSet) {
+            if (idx >= 0 && idx < vertexCount) {
+                colorAttr.setXYZ(idx, highlightR, highlightG, highlightB);
+            }
+        }
+        colorAttr.needsUpdate = true;
 
-        this.boundaryPoints = new THREE.Points(geometry, material);
-        this.scene.add(this.boundaryPoints);
+        // Enable vertex colors on the material
+        this.model.material.vertexColors = true;
+        this.model.material.color.set(0xffffff); // Neutral so vertex colors show correctly
+        this.model.material.needsUpdate = true;
+        this.originalVertexColors = true;
+
         this.boundaryIndices = indices;
     }
 
     /**
-     * Clear boundary visualization
+     * Clear boundary visualization by resetting vertex colors
      */
     clearBoundaryHighlights() {
-        if (this.boundaryPoints) {
-            this.scene.remove(this.boundaryPoints);
-            this.boundaryPoints.geometry.dispose();
-            this.boundaryPoints.material.dispose();
-            this.boundaryPoints = null;
+        if (this.model && this.originalVertexColors) {
+            const geometry = this.model.geometry;
+            const colorAttr = geometry.getAttribute('color');
+            if (colorAttr) {
+                // Reset all vertices to bone color
+                const boneR = 0xf5 / 255, boneG = 0xe6 / 255, boneB = 0xd3 / 255;
+                for (let i = 0; i < colorAttr.count; i++) {
+                    colorAttr.setXYZ(i, boneR, boneG, boneB);
+                }
+                colorAttr.needsUpdate = true;
+            }
+            // Restore original material settings
+            this.model.material.vertexColors = false;
+            this.model.material.color.set(0xf5e6d3);
+            this.model.material.needsUpdate = true;
+            this.originalVertexColors = false;
         }
         this.boundaryIndices = [];
     }
