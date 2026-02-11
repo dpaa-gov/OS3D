@@ -91,6 +91,7 @@ For developers who want to run from source or contribute.
 ### Install Dependencies
 
 ```bash
+git clone https://github.com/dpaa-gov/OS3D
 cd OS3D
 julia --project=. -e "using Pkg; Pkg.instantiate()"
 ```
@@ -286,6 +287,7 @@ If you use this software, please cite it as:
 - [ ] ICP: Reuse fixed point cloud PointCloud/normals/KDTree across pairs in `OMS_worker` (`icp.jl`)
 - [ ] ICP: Pre-allocate vertex matrix in XYZ parser instead of `Vector{Vector}` conversion (`xyz_reader.jl`)
 - [ ] ICP: Gate `@info` logging behind a verbose flag to reduce I/O contention
+- [ ] `Pkg.instantiate()` fails on HTTP/MbedTLS due to parallel precompilation race condition (works manually with `using HTTP`)
 
 - [ ] Verify packaged Windows bundle shuts down Julia processes after browser close (same `_exit` fix)
 
