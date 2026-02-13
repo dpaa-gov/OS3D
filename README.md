@@ -3,7 +3,7 @@
 ![Version](https://img.shields.io/badge/version-0.1.0-blue)
 ![Julia](https://img.shields.io/badge/Julia-1.11+-9558B2?logo=julia&logoColor=white)
 ![Linux](https://img.shields.io/badge/Linux-tested-success?logo=linux&logoColor=white)
-![Windows](https://img.shields.io/badge/Windows-partial-yellow?logo=windows&logoColor=white)
+![Windows](https://img.shields.io/badge/Windows-failing-red?logo=windows&logoColor=white)
 ![macOS](https://img.shields.io/badge/macOS-untested-lightgrey?logo=apple&logoColor=white)
 
 A web-based application for 3D mesh visualization, anatomical landmarking, and osteometric comparison analysis using ICP (Iterative Closest Point) registration.
@@ -106,7 +106,7 @@ julia --project=. -e "using Pkg; Pkg.instantiate()"
 start.bat
 ```
 
-Then open http://127.0.0.1:8000 in your browser. Closing the browser tab will automatically shut down both servers after ~15 seconds.
+The browser will open automatically when the servers are ready. Closing the browser tab will automatically shut down both servers after ~15 seconds.
 
 To run servers separately:
 
@@ -130,18 +130,16 @@ The sysimage is saved to `dist/os3d_sysimage.so` and is automatically used by th
 
 ### Build Distributable Bundle
 
-Prerequisites: Julia installed, dependencies resolved, sysimage built.
+The package script builds the sysimage automatically — single command.
 
 **Linux:**
 ```bash
-julia --project=. build/build_sysimage.jl
 bash build/package.sh
-# Output: dist/OS3D-v0.1.0-linux-x86_64.tar.gz (~706 MB)
+# Output: dist/OS3D-v0.1.0-linux-x86_64.tar.gz
 ```
 
 **Windows:**
 ```cmd
-julia --project=. build\build_sysimage.jl
 build\package.bat
 REM Output: dist\OS3D-v0.1.0-windows-x86_64.zip
 ```
@@ -209,8 +207,29 @@ Boundary vertices (detected holes/fragment edges) are expanded by one ring of me
 - Boundary points are **excluded as measurement sources**
 - Correspondences **to boundary points are ignored**
 
-### Initial Alignment
-If 3+ matching landmarks are present in both meshes, they are used for initial rigid alignment before ICP refinement.
+### Initial Alignment (Landmark-Based)
+If 3+ matching landmarks are present in both meshes, a rigid alignment is computed before ICP refinement. The moving mesh X-axis is mirrored for left/right comparison.
+
+**Algorithm: Center → Rotate → Uncenter**
+
+1. **Center**: Subtract each landmark set's centroid (`cm`, `cf`) — both sets move to origin
+2. **Rotate**: SVD of the centered cross-covariance matrix gives the optimal rotation `R`
+3. **Uncenter**: Place the rotated data at the fixed landmark centroid position
+
+```julia
+# compute_rotation centers landmarks internally for SVD
+R = compute_rotation(mov_coords, fix_coords)
+# One-liner: center on moving centroid, rotate, place at fixed centroid
+X_mov = (X_mov .- cm) * R .+ cf
+```
+
+Centering the landmarks before SVD ensures the rotation captures only orientation, not position — so alignment works regardless of how far apart the bones are in space. The "uncenter" step (`.+ cf`) places the result where the fixed cloud lives, not at the origin.
+
+**Landmark Requirements**
+
+- **Minimum**: 3 non-collinear (not in a straight line) landmarks are required to uniquely determine a rigid rotation in 3D
+- **Recommended**: 5–6 landmarks per bone end. More landmarks overdetermine the rotation, making SVD find the best-fit and improving robustness to placement error
+- **Placement**: Landmarks should be spread across the bone surface, not clustered together. Collinear or tightly grouped landmarks leave rotational ambiguity — the bone can spin around the line/cluster and still satisfy the landmark alignment
 
 ## File Formats
 
@@ -278,9 +297,10 @@ If you use this software, please cite it as:
 
 ## TODO
 
-- [ ] Verify boundary detection works for fragmentary remains using EMU models
-- [ ] Convert old XYZRGB models to new XYZ format
-- [ ] Verify lowest distances to the boundaries are discarded in the Hausdorff distance
+
+- [ ] Migrate build to QA3D-style app bundle (single-process, PackageCompiler compiled app)
+- [ ] Test normalized Hausdorff distance for fragmentary remains
+- [ ] Check vertex counts in Artec real-time fusion models and evaluate mesh reduction
 - [ ] macOS standalone bundle
 - [ ] ICP: Avoid rebuilding KD-tree every iteration in `matching!()` (`point_to_plane.jl`)
 - [ ] ICP: Batch boundary filtering with `Set` instead of row-by-row matrix copies (`fragment_landmarks.jl`)
@@ -289,18 +309,10 @@ If you use this software, please cite it as:
 - [ ] ICP: Gate `@info` logging behind a verbose flag to reduce I/O contention
 - [ ] `Pkg.instantiate()` fails on HTTP/MbedTLS due to parallel precompilation race condition (works manually with `using HTTP`)
 
-- [ ] Verify packaged Windows bundle shuts down Julia processes after browser close (same `_exit` fix)
-
 ### Windows (Partially Tested)
 
-Windows scripts and launchers exist and have been tested on a Windows VM. Core functionality works:
-- ✅ PLY model loading (cross-platform path handling)
-- ✅ File saving (path separator fixes)
-- ✅ PID-based process monitoring (replaced unreliable curl/window-title approaches)
-- ✅ Browse dialog starts at user's home directory
-
 Remaining:
-- [ ] Occasional app shutdown on VM — needs bare-metal Windows testing to confirm if VM-related
+- [ ] Windows installer for the compiled app
 - [ ] Audit all file path handling in `routes.jl` and `lib/` for edge cases with Windows `\` vs `/`
 
 ## License

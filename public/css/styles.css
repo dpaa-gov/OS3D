@@ -2,12 +2,12 @@
 
 /* ====== CSS Variables ====== */
 :root {
-    --bg-primary: #1a1f2e;
-    --bg-secondary: #242b3d;
-    --bg-tertiary: #2d3548;
-    --bg-glass: rgba(45, 53, 72, 0.8);
-    --text-primary: #f0f2f5;
-    --text-secondary: #a0a8b8;
+    --bg-primary: #1a1d23;
+    --bg-secondary: #22262e;
+    --bg-tertiary: #282c34;
+    --bg-glass: rgba(34, 38, 46, 0.8);
+    --text-primary: #e8e8e8;
+    --text-secondary: #9ca3af;
     --text-muted: #6b7280;
     --accent-primary: #2563eb;
     --accent-secondary: #3b82f6;
@@ -15,7 +15,7 @@
     --success: #10b981;
     --warning: #f59e0b;
     --danger: #ef4444;
-    --border-color: rgba(255, 255, 255, 0.12);
+    --border-color: #3a3f4b;
     --border-glow: rgba(37, 99, 235, 0.5);
     --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.3);
     --radius-sm: 6px;

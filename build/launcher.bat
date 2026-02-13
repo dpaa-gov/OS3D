@@ -29,10 +29,10 @@ REM Detect sysimage
 set "SYSIMAGE=%~dp0dist\os3d_sysimage.dll"
 if exist "%SYSIMAGE%" (
     set "JULIA_FLAGS=--project=%~dp0. -J%SYSIMAGE%"
-    echo Using precompiled sysimage (fast startup)
+    echo Using precompiled sysimage
 ) else (
     set "JULIA_FLAGS=--project=%~dp0."
-    echo No sysimage found — using JIT compilation (slower startup)
+    echo No sysimage found - using JIT compilation
 )
 
 REM --- Start ICP server and capture its PID ---
@@ -102,7 +102,7 @@ exit /b 1
 :genie_ready
 set "URL=http://127.0.0.1:8000"
 
-REM Open in browser app mode — try Edge (pre-installed on Windows), then Chrome
+REM Open in browser app mode - try Edge, then Chrome
 echo.
 echo Opening OS3D in browser...
 where msedge >nul 2>&1
@@ -136,7 +136,7 @@ if defined GENIE_PID (
     tasklist /FI "PID eq %GENIE_PID%" 2>nul | findstr /I "julia.exe" >nul
     if errorlevel 1 (
         echo.
-        echo Genie app exited — shutting down ICP server...
+        echo Genie app exited - shutting down ICP server...
         if defined ICP_PID taskkill /PID %ICP_PID% /F >nul 2>&1
         echo Stopped.
         goto :eof

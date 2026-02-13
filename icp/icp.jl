@@ -73,14 +73,18 @@ end
     # Initial alignment using landmarks
     fix_coords, mov_coords = get_corresponding_landmark_coords(data_fix, data_mov)
     
-    if size(fix_coords, 1) >= 3
+   if size(fix_coords, 1) >= 3
         @info "Start point-to-point initial alignment with $(size(fix_coords, 1)) landmarks..."
         # Mirror the moving landmarks X coordinate too
         mov_coords[:, 1] = mov_coords[:, 1] * -1
-        R = trafo(mov_coords, fix_coords)
-        X_mov = applyTrafo(X_mov, R)
+
+        # Center on landmark centroids, rotate, uncenter to fixed position
+        cm = mean(mov_coords, dims=1)
+        cf = mean(fix_coords, dims=1)
+        R = compute_rotation(mov_coords, fix_coords)
+        X_mov = (X_mov .- cm) * R .+ cf
     end
-    
+
     # Create point clouds
     pcfix = PointCloud(X_fix[:, 1], X_fix[:, 2], X_fix[:, 3])
     pcmov = PointCloud(X_mov[:, 1], X_mov[:, 2], X_mov[:, 3])

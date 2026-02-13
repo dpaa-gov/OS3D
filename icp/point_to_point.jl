@@ -1,14 +1,8 @@
-#calculate rotation between two point clouds
-@everywhere function trafo(moving_array::Array, fixed_array::Array)
-	N = fixed_array' * moving_array
-	sv = svd(N)
-	R = sv.V .* sign(det(N))
-	R = sv.V * sv.U'
-	return R
-end
-
-#apply transformation
-@everywhere function applyTrafo(moving_array, R)
-	transformed = moving_array * R
-	return transformed
+function compute_rotation(moving_landmarks, fixed_landmarks)
+    cm = mean(moving_landmarks, dims=1)
+    cf = mean(fixed_landmarks, dims=1)
+    N = (fixed_landmarks .- cf)' * (moving_landmarks .- cm)
+    sv = svd(N)
+    R = sv.V * sv.U'
+    return R
 end

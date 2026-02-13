@@ -11,6 +11,7 @@ comparison_results = Ref{Vector{ComparisonResult}}(ComparisonResult[])
 const HEARTBEAT_TIMEOUT = 15.0  # seconds without heartbeat before shutdown
 last_heartbeat = Ref(Base.time())
 heartbeat_active = Ref(false)  # only start monitoring after first heartbeat
+comparing = Ref(false)  # pause heartbeat monitor during ICP comparison
 
 # Serve main page
 route("/") do
@@ -253,7 +254,9 @@ route("/api/analysis/run", method=POST) do
     end
     
     comparison_running[] = true
-    
+
+    # Pause heartbeat monitor — ICP comparison blocks event loop
+    comparing[] = true
     try
         results = run_comparison(
             convert(Vector{String}, left_files),
@@ -282,6 +285,10 @@ route("/api/analysis/run", method=POST) do
     catch e
         comparison_running[] = false
         return json(Dict("error" => string(e)))
+    finally
+        # Resume heartbeat monitor and refresh timestamp
+        comparing[] = false
+        last_heartbeat[] = Base.time()
     end
 end
 
@@ -302,8 +309,8 @@ route("/api/heartbeat", method=POST) do
         @async begin
             while true
                 sleep(5)
-                if heartbeat_active[] && (Base.time() - last_heartbeat[] > HEARTBEAT_TIMEOUT)
-                    @info "No heartbeat for $(HEARTBEAT_TIMEOUT)s — browser closed, shutting down..."
+                if heartbeat_active[] && !comparing[] && (Base.time() - last_heartbeat[] > HEARTBEAT_TIMEOUT)
+                    @info "Heartbeat monitor triggered shutdown" elapsed_sec=round(Base.time() - last_heartbeat[]; digits=1) comparing=comparing[]
                     # Signal ICP server to stop
                     try
                         HTTP.post("http://127.0.0.1:8001/stop"; connect_timeout=2, readtimeout=2)

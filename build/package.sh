@@ -38,11 +38,15 @@ echo "║  Output:   $BUNDLE_NAME.tar.gz"
 echo "╚═══════════════════════════════════════════╝"
 echo ""
 
+# Step 1: Build sysimage
+echo "1. Building sysimage..."
+mkdir -p "$DIST_DIR"
+julia --project="$PROJECT_DIR" "$SCRIPT_DIR/build_sysimage.jl"
+
 # Check sysimage exists
 SYSIMAGE="$DIST_DIR/os3d_sysimage.so"
 if [ ! -f "$SYSIMAGE" ]; then
-    echo "ERROR: Sysimage not found at $SYSIMAGE"
-    echo "Run first: julia --project=. build/build_sysimage.jl"
+    echo "ERROR: Sysimage build failed — $SYSIMAGE not found"
     exit 1
 fi
 
@@ -50,7 +54,7 @@ fi
 rm -rf "$STAGE_DIR"
 mkdir -p "$STAGE_DIR"
 
-echo "1. Copying application source..."
+echo "2. Copying application source..."
 for item in app.jl routes.jl Project.toml Manifest.toml icp lib views public CITATION.cff README.md; do
     if [ -e "$PROJECT_DIR/$item" ]; then
         cp -r "$PROJECT_DIR/$item" "$STAGE_DIR/"

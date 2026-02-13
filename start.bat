@@ -77,6 +77,11 @@ exit /b 1
 :genie_ready
 echo Genie app ready!
 
+REM Auto-open browser in app mode
+echo Opening browser...
+start /b powershell -NoProfile -Command ^
+    "$edge = Get-Command msedge -ErrorAction SilentlyContinue; $chrome = 'C:\Program Files\Google\Chrome\Application\chrome.exe'; if ($edge) { Start-Process $edge.Source -ArgumentList '--app=http://127.0.0.1:8000 --new-window' } elseif (Test-Path $chrome) { Start-Process $chrome -ArgumentList '--app=http://127.0.0.1:8000 --new-window' } else { Start-Process 'http://127.0.0.1:8000' }"
+
 echo.
 echo OS3D is running!
 echo   - Web UI: http://127.0.0.1:8000
@@ -91,7 +96,7 @@ if defined GENIE_PID (
     tasklist /FI "PID eq %GENIE_PID%" 2>nul | findstr /I "julia.exe" >nul
     if errorlevel 1 (
         echo.
-        echo Genie app exited — shutting down ICP server...
+        echo Genie app exited - shutting down ICP server...
         if defined ICP_PID taskkill /PID %ICP_PID% /F >nul 2>&1
         echo Stopped.
         goto :eof
