@@ -4,7 +4,7 @@
 # remove_fragmented_margins(fixed_array, moving_array, fixed_boundary_indices, moving_boundary_indices; percentile=0.95)
 # Calculate Hausdorff Distance excluding boundary vertices.
 # percentile: The percentile of distances to use (0.95 = 95th percentile, below which 95% of points fall)
-@everywhere function remove_fragmented_margins(fixed_array::Matrix, moving_array::Matrix, 
+function remove_fragmented_margins(fixed_array::Matrix, moving_array::Matrix, 
                                                 fixed_boundary_indices::Vector{Int}, 
                                                 moving_boundary_indices::Vector{Int};
                                                 percentile::Float64=0.95)

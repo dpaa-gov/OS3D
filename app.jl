@@ -6,10 +6,20 @@ using Genie.Requests
 using HTTP
 using JSON3
 
+# ICP dependencies
+using NearestNeighbors
+using StatsBase
+using Statistics
+using MultivariateStats
+using LinearAlgebra
+
 # Include library modules
 include("lib/ply_handler.jl")
-include("lib/comparison.jl")
 include("lib/hole_detection.jl")
+
+# Include ICP code (now runs in-process with threads)
+include("icp/icp.jl")
+include("lib/comparison.jl")
 
 # Include routes
 include("routes.jl")

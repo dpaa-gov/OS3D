@@ -310,13 +310,7 @@ route("/api/heartbeat", method=POST) do
             while true
                 sleep(5)
                 if heartbeat_active[] && !comparing[] && (Base.time() - last_heartbeat[] > HEARTBEAT_TIMEOUT)
-                    @info "Heartbeat monitor triggered shutdown" elapsed_sec=round(Base.time() - last_heartbeat[]; digits=1) comparing=comparing[]
-                    # Signal ICP server to stop
-                    try
-                        HTTP.post("http://127.0.0.1:8001/stop"; connect_timeout=2, readtimeout=2)
-                    catch
-                        # ICP server may already be down
-                    end
+                    @info "Heartbeat monitor triggered shutdown" elapsed_sec=round(Base.time() - last_heartbeat[]; digits=1)
                     # Force-kill: _exit() bypasses atexit handlers that can hang with sysimage
                     ccall(:_exit, Cvoid, (Cint,), 0)
                 end

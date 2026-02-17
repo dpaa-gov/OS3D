@@ -155,7 +155,8 @@ When scanning bones with Artec Studio, follow these steps to prepare models for 
 1. **Start with Real-Time Fusion models** — use the real-time fusion output from each scan as your starting point. This saves significant processing time compared to building meshes from raw frames.
 2. **Stitch fusion models** — if multiple scans are needed, align and stitch the real-time fusion models together.
 3. **Edit fracture margins** — after creating the final mesh, manually edit the fracture margins (broken edges) using Artec Studio's mesh editing tools. Clean, well-defined margins are required for OS3D's boundary detection to work correctly.
-4. **Export as PLY** — export the final mesh as a binary PLY file for use in OS3D.
+4. **Reduce mesh density (optional)** — real-time fusion models can be very high-poly. To reduce, use the **Mesh Optimization** tool, select **"By triangle quantity"**, and enter the percentage of triangles to keep (e.g., 10% to reduce the mesh by 90%). This reduces file size and speeds up ICP comparisons without significantly affecting accuracy.
+5. **Export as PLY** — export the final mesh as a binary PLY file for use in OS3D.
 
 > **Important:** If fracture margins are not properly cleaned up in Artec Studio, the automatic boundary detection in OS3D may miss edges or produce inaccurate results.
 
@@ -298,11 +299,15 @@ If you use this software, please cite it as:
 ## TODO
 
 
-- [ ] Migrate build to QA3D-style app bundle (single-process, PackageCompiler compiled app)
+- [x] **Migrate to threading** — replaced two-process `Distributed.jl` architecture with single-process `Threads.@spawn`
+- [ ] **Migrate build to PackageCompiler `create_app`** — convert sysimage build to a fully compiled standalone app (like QA3D)
 - [ ] Test normalized Hausdorff distance for fragmentary remains
 - [ ] Check vertex counts in Artec real-time fusion models and evaluate mesh reduction
 - [ ] macOS standalone bundle
-- [ ] ICP: Avoid rebuilding KD-tree every iteration in `matching!()` (`point_to_plane.jl`)
+- [x] Add "completed in" elapsed time to comparison results
+- [ ] **ICP: Avoid rebuilding KD-tree every iteration in `matching!()` (`point_to_plane.jl`)** — major GC pressure, rebuilds tree every ICP iteration per comparison
+- [ ] **ICP: Pre-allocate buffers for SVD/covariance/normals to reduce per-iteration allocations** — threads share one heap, heavy allocation triggers frequent stop-the-world GC
+- [ ] **ICP: Tune GC with `GC.gc(false)` between comparisons or `JULIA_GC_THREADS`** — threaded ICP ~33% slower than Distributed (8 min vs 6 min on 205×205) due to GC contention
 - [ ] ICP: Batch boundary filtering with `Set` instead of row-by-row matrix copies (`fragment_landmarks.jl`)
 - [ ] ICP: Reuse fixed point cloud PointCloud/normals/KDTree across pairs in `OMS_worker` (`icp.jl`)
 - [ ] ICP: Pre-allocate vertex matrix in XYZ parser instead of `Vector{Vector}` conversion (`xyz_reader.jl`)

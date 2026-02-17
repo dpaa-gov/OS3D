@@ -599,6 +599,18 @@ async function runComparison() {
 
             document.getElementById('export-csv-btn').disabled = false;
 
+            // Show elapsed time in results header
+            const elapsed = Date.now() - app.analysis.startTime;
+            const totalSecs = Math.floor(elapsed / 1000);
+            const mins = Math.floor(totalSecs / 60);
+            const secs = totalSecs % 60;
+            const parts = [];
+            if (mins > 0) parts.push(`${mins} ${mins === 1 ? 'minute' : 'minutes'}`);
+            parts.push(`${secs} ${secs === 1 ? 'second' : 'seconds'}`);
+            const completedEl = document.getElementById('completed-time');
+            completedEl.textContent = `Completed in ${parts.join(' ')}`;
+            completedEl.style.display = '';
+
             // Play notification chime on successful completion
             playCompletionChime();
         }
@@ -878,6 +890,9 @@ function clearResults() {
     app.analysis.bestMatches = [];
     updateResultsTable([]);
     document.getElementById('export-csv-btn').disabled = true;
+    const completedEl = document.getElementById('completed-time');
+    completedEl.textContent = '';
+    completedEl.style.display = 'none';
 }
 
 function clearAnalysisDirectory() {

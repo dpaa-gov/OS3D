@@ -1,6 +1,6 @@
 #!/bin/bash
 ## OS3D Launcher
-## Starts the ICP server and Genie web app, then opens in browser app mode.
+## Starts the Genie web app with threaded ICP, then opens in browser app mode.
 ## This script is meant for the standalone distribution bundle.
 
 set -e
@@ -22,10 +22,10 @@ fi
 # Use sysimage if available
 SYSIMAGE="$APP_DIR/dist/os3d_sysimage.so"
 if [ -f "$SYSIMAGE" ]; then
-    JULIA_FLAGS="--project=$APP_DIR -J$SYSIMAGE"
+    JULIA_FLAGS="--threads=auto --project=$APP_DIR -J$SYSIMAGE"
     echo "Using precompiled sysimage (fast startup)"
 else
-    JULIA_FLAGS="--project=$APP_DIR"
+    JULIA_FLAGS="--threads=auto --project=$APP_DIR"
     echo "No sysimage found — using JIT compilation (slower startup)"
 fi
 
@@ -35,18 +35,17 @@ echo "  ║     OS3D - Osteometric Sorting 3D     ║"
 echo "  ╚═══════════════════════════════════════╝"
 echo ""
 
-# Start ICP server in background
-echo "Starting ICP server on port 8001..."
-$JULIA $JULIA_FLAGS "$APP_DIR/icp/server.jl" > /tmp/os3d_icp.log 2>&1 &
-ICP_PID=$!
+# Start app
+echo "Starting OS3D on port 8000..."
+$JULIA $JULIA_FLAGS "$APP_DIR/app.jl" > /tmp/os3d_app.log 2>&1 &
+GENIE_PID=$!
 
-# Wait for ICP server to be ready
-echo "Waiting for ICP server to initialize..."
-MAX_WAIT=120
+# Wait for app to start accepting connections
+echo "Waiting for web app..."
 WAITED=0
-while [ $WAITED -lt $MAX_WAIT ]; do
-    if curl -s http://127.0.0.1:8001/status 2>/dev/null | grep -q '"ready":true'; then
-        echo "ICP server ready!"
+while [ $WAITED -lt 120 ]; do
+    if curl -s http://127.0.0.1:8000/ >/dev/null 2>&1; then
+        echo "Web app ready!"
         break
     fi
     sleep 2
@@ -54,29 +53,12 @@ while [ $WAITED -lt $MAX_WAIT ]; do
     echo "  ...waiting ($WAITED seconds)"
 done
 
-if [ $WAITED -ge $MAX_WAIT ]; then
-    echo "ERROR: ICP server failed to start within $MAX_WAIT seconds"
-    echo "Check /tmp/os3d_icp.log for errors"
-    kill $ICP_PID 2>/dev/null
+if [ $WAITED -ge 120 ]; then
+    echo "ERROR: App failed to start within 120 seconds"
+    echo "Check /tmp/os3d_app.log for errors"
+    kill $GENIE_PID 2>/dev/null
     exit 1
 fi
-
-# Start Genie app in background
-echo "Starting Genie web app on port 8000..."
-$JULIA $JULIA_FLAGS "$APP_DIR/app.jl" > /tmp/os3d_genie.log 2>&1 &
-GENIE_PID=$!
-
-# Wait for Genie to start accepting connections
-echo "Waiting for web app..."
-WAITED=0
-while [ $WAITED -lt 60 ]; do
-    if curl -s http://127.0.0.1:8000/ >/dev/null 2>&1; then
-        echo "Web app ready!"
-        break
-    fi
-    sleep 2
-    WAITED=$((WAITED + 2))
-done
 
 URL="http://127.0.0.1:8000"
 
@@ -101,33 +83,20 @@ fi
 echo ""
 echo "OS3D is running!"
 echo "  Web UI: $URL"
-echo "  ICP Server: http://127.0.0.1:8001"
 echo ""
 echo "Press Ctrl+C to stop"
 
-# Cleanup on exit — kills both servers and all worker processes
+# Cleanup on exit
 cleanup() {
     echo ""
     echo "Stopping OS3D..."
-    kill $ICP_PID $GENIE_PID 2>/dev/null
-    pkill -P $ICP_PID 2>/dev/null
-    wait $ICP_PID $GENIE_PID 2>/dev/null
+    kill $GENIE_PID 2>/dev/null
+    wait $GENIE_PID 2>/dev/null
     echo "Stopped."
     exit 0
 }
 
 trap cleanup SIGINT SIGTERM
 
-# Monitor both processes — if either exits, kill the other
-# This ensures closing the browser (heartbeat timeout) shuts everything down
-while true; do
-    if ! kill -0 $GENIE_PID 2>/dev/null; then
-        echo "Genie app exited — shutting down ICP server..."
-        cleanup
-    fi
-    if ! kill -0 $ICP_PID 2>/dev/null; then
-        echo "ICP server exited — shutting down Genie app..."
-        cleanup
-    fi
-    sleep 2
-done
+# Wait for process to exit
+wait $GENIE_PID

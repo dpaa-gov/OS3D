@@ -1,11 +1,11 @@
 # XYZ File Reader for New Format
-# Simple @everywhere functions (no module) for Distributed compatibility
+# Simple functions (no module)
 
 # Parsed XYZ file data struct
 # - vertices: Nx3 matrix of mesh vertices (excludes landmarks)
 # - landmarks: Vector of (landmark_index, x, y, z) tuples
 # - boundary_indices: 1-based indices of boundary vertices
-@everywhere struct XYZData
+struct XYZData
     vertices::Matrix{Float64}
     landmarks::Vector{Tuple{Int,Float64,Float64,Float64}}
     boundary_indices::Vector{Int}
@@ -17,7 +17,7 @@ end
 # - Lines with 4th column "B": boundary vertex
 # - Lines with 4th column "Ln" (e.g., L1, L2): landmark point (excluded from vertices)
 # Returns XYZData with separated vertices, landmarks, and boundary indices.
-@everywhere function read_xyz(filepath::String)
+function read_xyz(filepath::String)
     if !isfile(filepath)
         error("File not found: $filepath")
     end
@@ -81,7 +81,7 @@ end
 
 # get_landmark_coords(data::XYZData) -> Matrix{Float64}
 # Get landmark coordinates as Nx3 matrix, sorted by landmark index.
-@everywhere function get_landmark_coords(data::XYZData)
+function get_landmark_coords(data::XYZData)
     n = length(data.landmarks)
     if n == 0
         return zeros(Float64, 0, 3)
@@ -96,6 +96,6 @@ end
 
 # get_landmark_indices(data::XYZData) -> Vector{Int}
 # Get landmark indices (1, 2, 3, etc.) in order.
-@everywhere function get_landmark_indices(data::XYZData)
+function get_landmark_indices(data::XYZData)
     return [lm[1] for lm in data.landmarks]
 end

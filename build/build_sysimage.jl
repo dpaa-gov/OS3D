@@ -24,7 +24,7 @@ const SYSIMAGE_PATH = joinpath(DIST_DIR, "os3d_sysimage.$SYSIMAGE_EXT")
 # Create dist directory
 mkpath(DIST_DIR)
 
-# All packages used by both the Genie app and ICP workers
+# All packages used by the Genie app and ICP
 const PACKAGES = [
     "Genie",
     "HTTP",
@@ -34,7 +34,6 @@ const PACKAGES = [
     "Statistics",
     "MultivariateStats",
     "LinearAlgebra",
-    "SharedArrays",
 ]
 
 @info "Building OS3D sysimage..."

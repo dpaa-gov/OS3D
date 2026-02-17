@@ -1,8 +1,7 @@
 @echo off
 REM OS3D Launcher for Windows
-REM Starts the ICP server and Genie web app, then opens in browser app mode.
+REM Starts the Genie web app with threaded ICP, then opens in browser app mode.
 REM This script is meant for the standalone distribution bundle.
-REM Uses PID-based monitoring for reliable process tracking.
 
 cd /d "%~dp0"
 
@@ -28,78 +27,44 @@ if exist "%~dp0julia\bin\julia.exe" (
 REM Detect sysimage
 set "SYSIMAGE=%~dp0dist\os3d_sysimage.dll"
 if exist "%SYSIMAGE%" (
-    set "JULIA_FLAGS=--project=%~dp0. -J%SYSIMAGE%"
+    set "JULIA_FLAGS=--threads=auto --project=%~dp0. -J%SYSIMAGE%"
     echo Using precompiled sysimage
 ) else (
-    set "JULIA_FLAGS=--project=%~dp0."
+    set "JULIA_FLAGS=--threads=auto --project=%~dp0."
     echo No sysimage found - using JIT compilation
 )
 
-REM --- Start ICP server and capture its PID ---
-echo Starting ICP server on port 8001...
-set "ICP_PID="
-for /f %%a in ('powershell -NoProfile -Command "(Start-Process \"%JULIA%\" -ArgumentList '%JULIA_FLAGS% \"%~dp0icp\server.jl\"' -WindowStyle Minimized -PassThru).Id"') do set "ICP_PID=%%a"
-if not defined ICP_PID (
-    echo WARNING: Could not capture ICP server PID
-) else (
-    echo   ICP PID: %ICP_PID%
-)
-
-REM Wait for ICP server
-echo Waiting for ICP server to initialize...
-set MAX_WAIT=120
-set WAITED=0
-
-:icp_wait
-if %WAITED% GEQ %MAX_WAIT% goto icp_timeout
-curl -s http://127.0.0.1:8001/status 2>nul | findstr /C:"\"ready\":true" >nul
-if %ERRORLEVEL% EQU 0 goto icp_ready
-timeout /t 2 /nobreak >nul
-set /a WAITED=%WAITED%+2
-echo   ...waiting (%WAITED% seconds)
-goto icp_wait
-
-:icp_timeout
-echo ERROR: ICP server failed to start within %MAX_WAIT% seconds
-if defined ICP_PID taskkill /PID %ICP_PID% /F >nul 2>&1
-pause
-exit /b 1
-
-:icp_ready
-echo ICP server ready!
-
-REM --- Start Genie app and capture its PID ---
-echo Starting Genie web app on port 8000...
+REM --- Start app and capture its PID ---
+echo Starting OS3D on port 8000...
 set "GENIE_PID="
 for /f %%a in ('powershell -NoProfile -Command "(Start-Process \"%JULIA%\" -ArgumentList '%JULIA_FLAGS% \"%~dp0app.jl\"' -WindowStyle Minimized -PassThru).Id"') do set "GENIE_PID=%%a"
 if not defined GENIE_PID (
-    echo WARNING: Could not capture Genie app PID
+    echo WARNING: Could not capture app PID
 ) else (
-    echo   Genie PID: %GENIE_PID%
+    echo   PID: %GENIE_PID%
 )
 
-REM Wait for Genie
+REM Wait for app
 echo Waiting for web app...
-set GENIE_WAITED=0
-set GENIE_MAX_WAIT=120
+set WAITED=0
+set MAX_WAIT=120
 
-:genie_wait
-if %GENIE_WAITED% GEQ %GENIE_MAX_WAIT% goto genie_timeout
+:wait_loop
+if %WAITED% GEQ %MAX_WAIT% goto timeout
 curl -s http://127.0.0.1:8000/ >nul 2>&1
-if %ERRORLEVEL% EQU 0 goto genie_ready
+if %ERRORLEVEL% EQU 0 goto app_ready
 timeout /t 2 /nobreak >nul
-set /a GENIE_WAITED=%GENIE_WAITED%+2
-echo   ...waiting (%GENIE_WAITED% seconds)
-goto genie_wait
+set /a WAITED=%WAITED%+2
+echo   ...waiting (%WAITED% seconds)
+goto wait_loop
 
-:genie_timeout
-echo ERROR: Genie app failed to start within %GENIE_MAX_WAIT% seconds
+:timeout
+echo ERROR: App failed to start within %MAX_WAIT% seconds
 if defined GENIE_PID taskkill /PID %GENIE_PID% /F >nul 2>&1
-if defined ICP_PID taskkill /PID %ICP_PID% /F >nul 2>&1
 pause
 exit /b 1
 
-:genie_ready
+:app_ready
 set "URL=http://127.0.0.1:8000"
 
 REM Open in browser app mode - try Edge, then Chrome
@@ -125,20 +90,17 @@ start "" "%URL%"
 echo.
 echo OS3D is running!
 echo   Web UI: %URL%
-echo   ICP Server: http://127.0.0.1:8001
 echo.
-echo Press Ctrl+C to stop manually.
+echo Press Ctrl+C to stop.
 
-REM --- Monitor: check if Genie PID is still alive ---
+REM --- Monitor: check if PID is still alive ---
 :monitor_loop
 timeout /t 5 /nobreak >nul
 if defined GENIE_PID (
     tasklist /FI "PID eq %GENIE_PID%" 2>nul | findstr /I "julia.exe" >nul
     if errorlevel 1 (
         echo.
-        echo Genie app exited - shutting down ICP server...
-        if defined ICP_PID taskkill /PID %ICP_PID% /F >nul 2>&1
-        echo Stopped.
+        echo OS3D exited.
         goto :eof
     )
 )

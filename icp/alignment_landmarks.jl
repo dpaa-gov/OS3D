@@ -4,7 +4,7 @@
 # extract_landmarks_new(data) -> Matrix{Int}
 # Extract landmarks from XYZ data for initial alignment.
 # Returns Nx2 matrix where each row is (landmark_index_in_file, landmark_number).
-@everywhere function extract_landmarks_new(data)
+function extract_landmarks_new(data)
     landmarks = data.landmarks
     if isempty(landmarks)
         return zeros(Int, 0, 2)
@@ -21,7 +21,7 @@ end
 # compare_landmarks(L1::Matrix, L2::Matrix) -> Matrix{Int}
 # Compare two sets of landmarks to find common ones for initial alignment.
 # Returns matrix of corresponding indices.
-@everywhere function compare_landmarks(L1::Matrix, L2::Matrix)
+function compare_landmarks(L1::Matrix, L2::Matrix)
     if size(L1, 1) == 0 || size(L2, 1) == 0
         return zeros(Int, 0, 2)
     end
@@ -49,7 +49,7 @@ end
 # get_corresponding_landmark_coords(data1, data2) -> (Matrix, Matrix)
 # Get corresponding landmark coordinates from two XYZ datasets for alignment.
 # Returns two Nx3 matrices of matching landmarks.
-@everywhere function get_corresponding_landmark_coords(data1, data2)
+function get_corresponding_landmark_coords(data1, data2)
     L1 = extract_landmarks_new(data1)
     L2 = extract_landmarks_new(data2)
     

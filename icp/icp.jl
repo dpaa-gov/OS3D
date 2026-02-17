@@ -8,8 +8,8 @@ include("point_to_point.jl")
 include("fragment_landmarks.jl")
 include("alignment_landmarks.jl")
 
-# Worker function for distributed OMS comparison
-@everywhere function OMS_worker(filelist1_path::String, filelist2::Vector{String}, k::Int; hausdorff_percentile::Float64=0.95)
+# Worker function for threaded OMS comparison
+function OMS_worker(filelist1_path::String, filelist2::Vector{String}, k::Int; hausdorff_percentile::Float64=0.95)
     # Load fixed point cloud using new format
     data_fix = read_xyz(filelist1_path)
     
@@ -32,14 +32,19 @@ include("alignment_landmarks.jl")
     return Results
 end
 
-# Main distributed OMS function  
+# Main threaded OMS function  
 function OMS(filelist1::Vector{String}, filelist2::Vector{String}, hausdorff_percentile::Float64=0.95)
     n1 = length(filelist1)
     n2 = length(filelist2)
-    Results = SharedArray{Float64}(n2 * n1, 3)
+    @info "OMS: $(n1) × $(n2) comparisons on $(Threads.nthreads()) threads"
+    Results = zeros(Float64, n2 * n1, 3)
     
-    @sync @distributed for k in 1:n1
-        Results[((k * n2) - n2 + 1):(k * n2), :] = OMS_worker(filelist1[k], filelist2, k; hausdorff_percentile=hausdorff_percentile)
+    tasks = map(1:n1) do k
+        Threads.@spawn OMS_worker(filelist1[k], filelist2, k; hausdorff_percentile=hausdorff_percentile)
+    end
+    
+    for (k, t) in enumerate(tasks)
+        Results[((k * n2) - n2 + 1):(k * n2), :] = fetch(t)
     end
     
     return Results
@@ -50,7 +55,7 @@ end
 # - Mesh vertices only (landmarks excluded) for point cloud registration
 # - Landmarks for initial alignment if available
 # - Boundary indices for excluding fragment margins from Hausdorff distance
-@everywhere function simpleicp_new(data_fix, data_mov; 
+function simpleicp_new(data_fix, data_mov; 
                                     correspondences::Integer=1000, 
                                     neighbors::Integer=10, 
                                     min_planarity::Number=0.3, 

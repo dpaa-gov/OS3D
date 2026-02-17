@@ -20,7 +20,6 @@ using StatsBase
 using Statistics
 using MultivariateStats
 using LinearAlgebra
-using SharedArrays
 
 # KD-tree operations (hot path in ICP)
 pts = rand(3, 500)
