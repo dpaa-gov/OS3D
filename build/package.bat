@@ -1,13 +1,12 @@
 @echo off
 REM OS3D Windows Packaging Script
-REM Creates a self-contained distributable bundle
+REM Builds a standalone compiled application using PackageCompiler create_app
 REM
 REM Usage: build\package.bat
 REM
 REM Prerequisites:
-REM   - Julia installed and on PATH
+REM   - Julia 1.11+ installed and on PATH
 REM   - Project dependencies installed (Pkg.instantiate)
-REM   - Sysimage already built (julia --project=. build\build_sysimage.jl)
 REM
 REM Output: dist\OS3D-v{VERSION}-windows-x86_64.zip
 
@@ -24,6 +23,7 @@ if exist VERSION (
 set ARCH=x86_64
 set BUNDLE_NAME=OS3D-v%VERSION%-windows-%ARCH%
 set DIST_DIR=%CD%\dist
+set COMPILED_DIR=%DIST_DIR%\OS3D-compiled
 set STAGE_DIR=%DIST_DIR%\%BUNDLE_NAME%
 
 echo.
@@ -36,80 +36,34 @@ echo   Output:   %BUNDLE_NAME%.zip
 echo ============================================
 echo.
 
-REM Check sysimage exists
-set SYSIMAGE=%DIST_DIR%\os3d_sysimage.dll
-if not exist "%SYSIMAGE%" (
-    echo ERROR: Sysimage not found at %SYSIMAGE%
-    echo Run first: julia --project=. build\build_sysimage.jl
+REM Step 1: Build compiled application
+echo 1. Building compiled application (create_app)...
+julia --project=. build\build_sysimage.jl
+if errorlevel 1 (
+    echo ERROR: Build failed
     pause
     exit /b 1
 )
 
-REM Clean staging directory
+if not exist "%COMPILED_DIR%" (
+    echo ERROR: Compiled app not found at %COMPILED_DIR%
+    pause
+    exit /b 1
+)
+
+REM Step 2: Stage the compiled app
+echo 2. Staging bundle...
 if exist "%STAGE_DIR%" rmdir /s /q "%STAGE_DIR%"
-mkdir "%STAGE_DIR%"
+xcopy /e /i /q "%COMPILED_DIR%" "%STAGE_DIR%" >nul
 
-echo 1. Copying application source...
-for %%F in (app.jl routes.jl Project.toml Manifest.toml CITATION.cff README.md VERSION) do (
-    if exist "%%F" copy "%%F" "%STAGE_DIR%\" >nul
-)
-for %%D in (icp lib views public) do (
-    if exist "%%D" xcopy /e /i /q "%%D" "%STAGE_DIR%\%%D" >nul
-)
+REM Step 3: Copy runtime assets
+echo 3. Copying runtime assets...
+xcopy /e /i /q "public" "%STAGE_DIR%\public" >nul
+xcopy /e /i /q "views" "%STAGE_DIR%\views" >nul
+copy /y "Manifest.toml" "%STAGE_DIR%\share\julia\" >nul
 
-echo 2. Copying sysimage...
-mkdir "%STAGE_DIR%\dist" 2>nul
-copy "%SYSIMAGE%" "%STAGE_DIR%\dist\" >nul
-
-echo 3. Copying launcher...
-copy "%~dp0launcher.bat" "%STAGE_DIR%\launcher.bat" >nul
-copy "%~dp0OS3D.vbs" "%STAGE_DIR%\OS3D.vbs" >nul
-
-echo 4. Bundling Julia runtime...
-for /f "delims=" %%i in ('julia -e "print(Sys.BINDIR)"') do set JULIA_HOME=%%i
-for %%i in ("%JULIA_HOME%\..") do set JULIA_BASE=%%~fi
-
-mkdir "%STAGE_DIR%\julia" 2>nul
-xcopy /e /i /q "%JULIA_BASE%\bin" "%STAGE_DIR%\julia\bin" >nul
-xcopy /e /i /q "%JULIA_BASE%\lib" "%STAGE_DIR%\julia\lib" >nul
-xcopy /e /i /q "%JULIA_BASE%\share" "%STAGE_DIR%\julia\share" >nul
-if exist "%JULIA_BASE%\include" xcopy /e /i /q "%JULIA_BASE%\include" "%STAGE_DIR%\julia\include" >nul
-
-echo 5. Copying package depot (only required packages)...
-for /f "delims=" %%i in ('julia -e "print(first(DEPOT_PATH))"') do set DEPOT=%%i
-
-REM Get required package paths and copy them
-mkdir "%STAGE_DIR%\.julia\packages" 2>nul
-julia --project=. -e "using Pkg; deps = Pkg.dependencies(); for (uuid, info) in deps; if info.source !== nothing && isdir(info.source); println(info.source); end; end" > "%TEMP%\os3d_pkgs.txt" 2>nul
-
-for /f "delims=" %%P in (%TEMP%\os3d_pkgs.txt) do (
-    for %%H in ("%%P") do (
-        for %%N in ("%%~dpH.") do (
-            set PKG_HASH=%%~nxH
-            set PKG_NAME=%%~nxN
-            mkdir "%STAGE_DIR%\.julia\packages\!PKG_NAME!" 2>nul
-            xcopy /e /i /q "%%P" "%STAGE_DIR%\.julia\packages\!PKG_NAME!\!PKG_HASH!" >nul
-        )
-    )
-)
-
-REM Copy artifacts
-if exist "%DEPOT%\artifacts" (
-    echo    Copying artifacts...
-    xcopy /e /i /q "%DEPOT%\artifacts" "%STAGE_DIR%\.julia\artifacts" >nul
-)
-
-echo 6. Creating run script with DEPOT_PATH...
-(
-echo @echo off
-echo REM OS3D - Click to Run
-echo set "APP_DIR=%%~dp0"
-echo set "JULIA_DEPOT_PATH=%%APP_DIR%%.julia"
-echo call "%%APP_DIR%%launcher.bat"
-) > "%STAGE_DIR%\os3d.bat"
-
-echo 7. Creating archive...
-REM Use PowerShell to create zip (available on all modern Windows)
+REM Step 4: Create archive
+echo 4. Creating archive...
 powershell -Command "Compress-Archive -Path '%STAGE_DIR%' -DestinationPath '%DIST_DIR%\%BUNDLE_NAME%.zip' -Force"
 
 echo.
@@ -121,6 +75,6 @@ echo ============================================
 echo.
 echo To distribute:
 echo   1. Upload %BUNDLE_NAME%.zip
-echo   2. Users extract and run: os3d.bat
+echo   2. Users extract and run: bin\os3d.exe
 
 pause

@@ -10,7 +10,7 @@ echo.
 REM --- Start app and capture its PID ---
 echo Starting OS3D on port 8000...
 set "GENIE_PID="
-for /f %%a in ('powershell -NoProfile -Command "(Start-Process julia -ArgumentList '--threads=auto --project=. app.jl' -WindowStyle Minimized -PassThru).Id"') do set "GENIE_PID=%%a"
+for /f %%a in ('powershell -NoProfile -Command "(Start-Process julia -ArgumentList '--threads=auto --project=. -e \"using OS3D; OS3D.APP_ROOT[] = pwd(); OS3D.start_server(open=false)\"' -WindowStyle Minimized -PassThru).Id"') do set "GENIE_PID=%%a"
 if not defined GENIE_PID (
     echo WARNING: Could not capture app PID
 ) else (

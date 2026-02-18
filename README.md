@@ -1,10 +1,10 @@
 # Osteometric Sorting 3D (OS3D) v0.1.0
 
-![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![Build](https://img.shields.io/badge/build-passing-brightgreen)
 ![Julia](https://img.shields.io/badge/Julia-1.11+-9558B2?logo=julia&logoColor=white)
-![Linux](https://img.shields.io/badge/Linux-tested-success?logo=linux&logoColor=white)
-![Windows](https://img.shields.io/badge/Windows-failing-red?logo=windows&logoColor=white)
-![macOS](https://img.shields.io/badge/macOS-untested-lightgrey?logo=apple&logoColor=white)
+![Linux](https://img.shields.io/badge/Linux-passing-brightgreen?logo=linux&logoColor=white)
+![Windows](https://img.shields.io/badge/Windows-untested-lightgrey?logo=windows&logoColor=white)
+![Status](https://img.shields.io/badge/status-in%20development-yellow)
 
 A web-based application for 3D mesh visualization, anatomical landmarking, and osteometric comparison analysis using ICP (Iterative Closest Point) registration.
 
@@ -18,41 +18,34 @@ A web-based application for 3D mesh visualization, anatomical landmarking, and o
 
 ## Architecture
 
-OS3D uses a two-process architecture:
-- **Genie Web App** (port 8000): Handles web UI, file browsing, landmarking
-- **ICP Server** (port 8001): Runs distributed ICP comparisons using N-2 CPU cores
+OS3D runs as a single Julia process:
+- **Genie Web App** (port 8000): Handles web UI, file browsing, landmarking, and ICP comparisons
+- **ICP comparisons** run in-process using Julia's built-in threading (`Threads.@spawn`)
 
 ## System Requirements
 
-Memory usage scales with the number of CPU threads. Workers are calculated as `min(CPU_THREADS - 2, 64)`.
+OS3D uses Julia's built-in threading for parallel ICP comparisons. All threads share a single process and runtime, so memory usage is much lower than the previous multi-process architecture.
 
 ```
-Total RAM ≈ 500 MB + (number_of_workers × 300 MB)
+Base RAM ≈ 500 MB – 1 GB (Julia runtime + loaded packages + web server)
+Per-thread ≈ 5 – 20 MB (loaded meshes, KD-trees, normals)
 ```
 
-| CPU Threads | Workers | Estimated RAM |
-|:-----------:|:-------:|:-------------:|
-| 4           | 2       | ~1.1 GB       |
-| 8           | 6       | ~2.3 GB       |
-| 16          | 14      | ~4.7 GB       |
-| 32          | 30      | ~9.5 GB       |
-| 64          | 62      | ~19.1 GB      |
-| 66+         | 64 (cap)| ~19.7 GB      |
+Each thread loads its own copy of the fixed and moving point clouds during comparison, so memory does scale with thread count — but at ~5–20 MB per thread (for typical 10K–50K vertex scans), not the ~300 MB per worker from the previous Distributed architecture.
 
-> **Note:** Estimates assume typical bone scans in the 10K–50K vertex range. Larger meshes will increase per-worker memory.
+> **Recommended:** Julia 1.11+ with 4+ threads. Launch Julia with `--threads=auto` (used by `start.sh`) to use all available cores.
 
 ---
 
 ## Quick Start (Standalone Bundle)
 
-Pre-built bundles include Julia, all dependencies, and a precompiled sysimage — **no installation required**.
+Pre-built bundles include a compiled `os3d` executable, Julia runtime, all packages with artifacts, and web assets — **no installation required**.
 
 ### Download
 
 Download the latest release for your platform:
 - `OS3D-v0.1.0-linux-x86_64.tar.gz` (Linux)
 - `OS3D-v0.1.0-windows-x86_64.zip` (Windows)
-- macOS build coming soon
 
 ### Run
 
@@ -60,22 +53,16 @@ Download the latest release for your platform:
 # Linux
 tar xzf OS3D-v0.1.0-linux-x86_64.tar.gz
 cd OS3D-v0.1.0-linux-x86_64
-./os3d.sh
+bin/os3d
 ```
 
 ```cmd
 REM Windows — extract the zip, then:
-os3d.bat
+cd OS3D-v0.1.0-windows-x86_64
+bin\os3d.exe
 ```
 
-The app will start both servers and open in a browser window automatically. Closing the browser will automatically shut down the servers.
-
-> **Note:** The ICP server takes 20–60 seconds to initialize (loading workers). Only launch once — do not double-click the launcher multiple times.
-
-**Launch options:**
-
-- **Console visible** (for debugging / viewing logs): `os3d.sh` (Linux) · `os3d.bat` (Windows)
-- **Console hidden** (normal use, double-click): `OS3D.desktop` (Linux) · `OS3D.vbs` (Windows)
+The app opens in a browser window automatically. Closing the browser will automatically shut down the server after ~15 seconds.
 
 ---
 
@@ -99,38 +86,18 @@ julia --project=. -e "using Pkg; Pkg.instantiate()"
 ### Run (Development Mode)
 
 ```bash
-# Linux/macOS
+# Linux
 ./start.sh
 
 # Windows
 start.bat
 ```
 
-The browser will open automatically when the servers are ready. Closing the browser tab will automatically shut down both servers after ~15 seconds.
+The browser will open automatically when the server is ready. Closing the browser tab will automatically shut down the server after ~15 seconds.
 
-To run servers separately:
+### Build Compiled App (Optional — Standalone Distribution)
 
-```bash
-# Terminal 1: Start ICP server
-julia --project=. icp/server.jl
-
-# Terminal 2: Start Genie app
-julia --project=. app.jl
-```
-
-### Build Sysimage (Optional — Faster Startup)
-
-Use PackageCompiler to create a precompiled sysimage. This reduces package load time from ~4.4s to ~0.5s.
-
-```bash
-julia --project=. build/build_sysimage.jl
-```
-
-The sysimage is saved to `dist/os3d_sysimage.so` and is automatically used by the ICP server workers when present.
-
-### Build Distributable Bundle
-
-The package script builds the sysimage automatically — single command.
+Use PackageCompiler to create a standalone compiled executable. No Julia installation required on the target machine.
 
 **Linux:**
 ```bash
@@ -144,7 +111,13 @@ build\package.bat
 REM Output: dist\OS3D-v0.1.0-windows-x86_64.zip
 ```
 
-The bundle includes the Julia runtime, sysimage, all packages, and app source — users don't need Julia installed.
+**Windows Installer** (optional, requires [Inno Setup 6+](https://jrsoftware.org/isinfo.php)):
+```cmd
+iscc build\installer.iss
+```
+Output: `dist\OS3D-v0.1.0-windows-setup.exe` — standard setup wizard with Start Menu and desktop shortcuts.
+
+Build time is approximately 5–15 minutes. The bundle includes a compiled `os3d` executable, Julia runtime, all packages with artifacts, and web assets.
 
 ---
 
@@ -251,33 +224,30 @@ x y z L2        # landmark 2
 
 ```
 OS3D/
-├── app.jl              # Genie web server
-├── routes.jl           # API endpoints
-├── start.sh            # Dev startup script (Linux/macOS)
+├── src/
+│   ├── OS3D.jl             # Module entry point + julia_main()
+│   ├── routes.jl           # API endpoints
+│   ├── lib/
+│   │   ├── comparison.jl       # ICP comparison runner
+│   │   ├── ply_handler.jl      # PLY/XYZ file handling
+│   │   └── hole_detection.jl
+│   └── icp/
+│       ├── icp.jl              # Main ICP algorithm
+│       ├── xyz_reader.jl       # XYZ file parser
+│       ├── point_to_plane.jl   # Point-to-plane ICP
+│       ├── point_to_point.jl   # Point-to-point matching
+│       ├── knn_ind_dst.jl      # KNN utilities
+│       ├── fragment_landmarks.jl   # Boundary-aware Hausdorff
+│       └── alignment_landmarks.jl  # Landmark-based alignment
+├── app.jl              # Dev mode entry point
+├── start.sh            # Dev startup script (Linux)
 ├── start.bat           # Dev startup script (Windows)
 ├── VERSION             # Version number
 ├── build/
-│   ├── build_sysimage.jl   # Sysimage builder (PackageCompiler)
+│   ├── build_sysimage.jl   # PackageCompiler create_app builder
 │   ├── precompile_workload.jl
 │   ├── package.sh          # Linux bundle builder
-│   ├── package.bat         # Windows bundle builder
-│   ├── launcher.sh         # Linux launcher (for bundle)
-│   ├── launcher.bat        # Windows launcher (for bundle)
-│   ├── OS3D.desktop        # Linux app launcher (no terminal)
-│   └── OS3D.vbs            # Windows silent launcher (no console)
-├── lib/
-│   ├── comparison.jl       # ICP server API client
-│   ├── ply_handler.jl      # PLY/XYZ file handling
-│   └── hole_detection.jl
-├── icp/
-│   ├── server.jl           # Distributed ICP HTTP server
-│   ├── icp.jl              # Main ICP algorithm
-│   ├── xyz_reader.jl       # XYZ file parser
-│   ├── point_to_plane.jl   # Point-to-plane ICP
-│   ├── point_to_point.jl   # Point-to-point matching
-│   ├── knn_ind_dst.jl      # KNN utilities
-│   ├── fragment_landmarks.jl   # Boundary-aware Hausdorff
-│   └── alignment_landmarks.jl  # Landmark-based alignment
+│   └── package.bat         # Windows bundle builder
 ├── views/
 │   └── index.html
 └── public/
@@ -287,8 +257,7 @@ OS3D/
 
 ## Logs
 
-- ICP server: `/tmp/icp_server.log` (Linux) or `%TEMP%\os3d_icp.log` (Windows)
-- Genie app: stdout (Linux) or `%TEMP%\os3d_genie.log` (Windows)
+App output is printed to stdout. When launched via the compiled executable without a terminal, output is suppressed.
 
 ## Citation
 
@@ -298,13 +267,8 @@ If you use this software, please cite it as:
 
 ## TODO
 
-
-- [x] **Migrate to threading** — replaced two-process `Distributed.jl` architecture with single-process `Threads.@spawn`
-- [ ] **Migrate build to PackageCompiler `create_app`** — convert sysimage build to a fully compiled standalone app (like QA3D)
 - [ ] Test normalized Hausdorff distance for fragmentary remains
 - [ ] Check vertex counts in Artec real-time fusion models and evaluate mesh reduction
-- [ ] macOS standalone bundle
-- [x] Add "completed in" elapsed time to comparison results
 - [ ] **ICP: Avoid rebuilding KD-tree every iteration in `matching!()` (`point_to_plane.jl`)** — major GC pressure, rebuilds tree every ICP iteration per comparison
 - [ ] **ICP: Pre-allocate buffers for SVD/covariance/normals to reduce per-iteration allocations** — threads share one heap, heavy allocation triggers frequent stop-the-world GC
 - [ ] **ICP: Tune GC with `GC.gc(false)` between comparisons or `JULIA_GC_THREADS`** — threaded ICP ~33% slower than Distributed (8 min vs 6 min on 205×205) due to GC contention
@@ -313,12 +277,6 @@ If you use this software, please cite it as:
 - [ ] ICP: Pre-allocate vertex matrix in XYZ parser instead of `Vector{Vector}` conversion (`xyz_reader.jl`)
 - [ ] ICP: Gate `@info` logging behind a verbose flag to reduce I/O contention
 - [ ] `Pkg.instantiate()` fails on HTTP/MbedTLS due to parallel precompilation race condition (works manually with `using HTTP`)
-
-### Windows (Partially Tested)
-
-Remaining:
-- [ ] Windows installer for the compiled app
-- [ ] Audit all file path handling in `routes.jl` and `lib/` for edge cases with Windows `\` vs `/`
 
 ## License
 

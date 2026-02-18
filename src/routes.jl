@@ -1,6 +1,5 @@
 # Routes for OS3D API
 using .PLYHandler
-using .Comparison
 using .HoleDetection
 
 # Global state for comparison
@@ -13,14 +12,16 @@ last_heartbeat = Ref(Base.time())
 heartbeat_active = Ref(false)  # only start monitoring after first heartbeat
 comparing = Ref(false)  # pause heartbeat monitor during ICP comparison
 
+function setup_routes()
+
 # Serve main page
 route("/") do
-    Genie.Renderer.respond(read(joinpath(@__DIR__, "views", "index.html"), String), "text/html")
+    Genie.Renderer.respond(read(joinpath(APP_ROOT[], "views", "index.html"), String), "text/html")
 end
 
 # Serve favicon
 route("/favicon.ico") do
-    filepath = joinpath(@__DIR__, "public", "images", "favicon.png")
+    filepath = joinpath(APP_ROOT[], "public", "images", "favicon.png")
     if isfile(filepath)
         return Genie.Renderer.respond(
             read(filepath, String),
@@ -32,7 +33,7 @@ end
 
 # Serve static files
 route("/css/:file") do
-    filepath = joinpath(@__DIR__, "public", "css", payload(:file))
+    filepath = joinpath(APP_ROOT[], "public", "css", payload(:file))
     if isfile(filepath)
         return Genie.Renderer.respond(
             read(filepath, String),
@@ -43,7 +44,7 @@ route("/css/:file") do
 end
 
 route("/js/:file") do
-    filepath = joinpath(@__DIR__, "public", "js", payload(:file))
+    filepath = joinpath(APP_ROOT[], "public", "js", payload(:file))
     if isfile(filepath)
         return Genie.Renderer.respond(
             read(filepath, String),
@@ -231,8 +232,8 @@ route("/api/analysis/files", method=POST) do
         return json(Dict("error" => "Invalid directory"))
     end
     
-    xyz_files = Comparison.get_xyz_files(directory)
-    left_files, right_files = Comparison.separate_left_right(xyz_files)
+    xyz_files = get_xyz_files(directory)
+    left_files, right_files = separate_left_right(xyz_files)
     
     return json(Dict(
         "leftFiles" => left_files,
@@ -319,3 +320,5 @@ route("/api/heartbeat", method=POST) do
     end
     return json(Dict("ok" => true))
 end
+
+end # setup_routes()
