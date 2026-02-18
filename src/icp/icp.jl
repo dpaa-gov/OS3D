@@ -13,16 +13,23 @@ function OMS_worker(filelist1_path::String, filelist2::Vector{String}, k::Int; h
     # Load fixed point cloud using new format
     data_fix = read_xyz(filelist1_path)
     
+    # Pre-compute fixed PointCloud ONCE for all pairs
+    # (normals + selected points are identical for every moving file)
+    X_fix = data_fix.vertices
+    co = Int(round(size(X_fix, 1) * 0.2))
+    pcfix = PointCloud(X_fix[:, 1], X_fix[:, 2], X_fix[:, 3])
+    select_n_points!(pcfix, co)
+    sel_orig = pcfix.sel
+    estimate_normals!(pcfix, 10)
+    
     Results = zeros(length(filelist2), 3)
     
     for (i, filepath) in enumerate(filelist2)
         data_mov = read_xyz(filepath)
         
-        # Calculate correspondences based on 20% of points
-        co = Int(round(size(data_fix.vertices, 1) * 0.2))
-        
-        # Run simplified ICP
-        MDH = simpleicp_new(data_fix, data_mov, correspondences=co, hausdorff_percentile=hausdorff_percentile)
+        # Run simplified ICP with pre-built fixed cloud
+        MDH = simpleicp_new(data_fix, data_mov, pcfix, sel_orig;
+                            correspondences=co, hausdorff_percentile=hausdorff_percentile)
         
         Results[i, 1] = k
         Results[i, 2] = i
@@ -55,7 +62,8 @@ end
 # - Mesh vertices only (landmarks excluded) for point cloud registration
 # - Landmarks for initial alignment if available
 # - Boundary indices for excluding fragment margins from Hausdorff distance
-function simpleicp_new(data_fix, data_mov; 
+# pcfix and sel_orig are pre-built by OMS_worker (shared across all pairs for the same fixed file)
+function simpleicp_new(data_fix, data_mov, pcfix, sel_orig; 
                                     correspondences::Integer=1000, 
                                     neighbors::Integer=10, 
                                     min_planarity::Number=0.3, 
@@ -63,7 +71,6 @@ function simpleicp_new(data_fix, data_mov;
                                     max_iterations::Integer=100,
                                     hausdorff_percentile::Float64=0.95)
     
-    X_fix = data_fix.vertices
     X_mov = copy(data_mov.vertices)
     
     correspondences >= 10 || error("correspondences must be >= 10")
@@ -90,20 +97,21 @@ function simpleicp_new(data_fix, data_mov;
         X_mov = (X_mov .- cm) * R .+ cf
     end
 
-    # Create point clouds
-    pcfix = PointCloud(X_fix[:, 1], X_fix[:, 2], X_fix[:, 3])
+    # Create moving point cloud (fixed cloud is pre-built)
     pcmov = PointCloud(X_mov[:, 1], X_mov[:, 2], X_mov[:, 3])
     
-    select_n_points!(pcfix, correspondences)
-    sel_orig = pcfix.sel
-    estimate_normals!(pcfix, neighbors)
+    # Restore fixed cloud selection for this pair
+    pcfix.sel = sel_orig
     
     H = Matrix{Float64}(I, 4, 4)
     residual_distances = Any[]
     
+    # Pre-compute query points — same every iteration since pcfix.sel is restored to sel_orig
+    query_points = [pcfix.x[sel_orig]'; pcfix.y[sel_orig]'; pcfix.z[sel_orig]']
+    
     @info "Start point-to-plane alignment..."
     for i in 1:max_iterations
-        initial_distances = matching!(pcmov, pcfix)
+        initial_distances = matching!(pcmov, pcfix, query_points)
         reject!(pcmov, pcfix, min_planarity, initial_distances)
         
         dH, residuals = estimate_rigid_body_transformation(

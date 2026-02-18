@@ -1,7 +1,7 @@
 # Osteometric Sorting 3D (OS3D) v0.1.0
 
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
-![Julia](https://img.shields.io/badge/Julia-1.11+-9558B2?logo=julia&logoColor=white)
+![Julia](https://img.shields.io/badge/Julia-1.11-9558B2?logo=julia&logoColor=white)
 ![Linux](https://img.shields.io/badge/Linux-passing-brightgreen?logo=linux&logoColor=white)
 ![Windows](https://img.shields.io/badge/Windows-untested-lightgrey?logo=windows&logoColor=white)
 ![Status](https://img.shields.io/badge/status-in%20development-yellow)
@@ -53,7 +53,7 @@ Download the latest release for your platform:
 # Linux
 tar xzf OS3D-v0.1.0-linux-x86_64.tar.gz
 cd OS3D-v0.1.0-linux-x86_64
-bin/os3d
+./os3d.sh
 ```
 
 ```cmd
@@ -269,13 +269,17 @@ If you use this software, please cite it as:
 
 - [ ] Test normalized Hausdorff distance for fragmentary remains
 - [ ] Check vertex counts in Artec real-time fusion models and evaluate mesh reduction
-- [ ] **ICP: Avoid rebuilding KD-tree every iteration in `matching!()` (`point_to_plane.jl`)** — major GC pressure, rebuilds tree every ICP iteration per comparison
-- [ ] **ICP: Pre-allocate buffers for SVD/covariance/normals to reduce per-iteration allocations** — threads share one heap, heavy allocation triggers frequent stop-the-world GC
-- [ ] **ICP: Tune GC with `GC.gc(false)` between comparisons or `JULIA_GC_THREADS`** — threaded ICP ~33% slower than Distributed (8 min vs 6 min on 205×205) due to GC contention
-- [ ] ICP: Batch boundary filtering with `Set` instead of row-by-row matrix copies (`fragment_landmarks.jl`)
-- [ ] ICP: Reuse fixed point cloud PointCloud/normals/KDTree across pairs in `OMS_worker` (`icp.jl`)
+- [x] ~~ICP: Avoid rebuilding KD-tree every iteration in `matching!()`~~ — **not possible unconditionally**: tree is on the moving cloud which transforms every iteration
+- [ ] ICP: Skip KD-tree rebuild in later iterations when `‖dH - I‖ < ε` — correspondences unlikely to change near convergence; rebuild early iterations + every Nth iteration or based on transform magnitude
+- [x] **ICP: Pre-allocate buffers for SVD/covariance/normals to reduce per-iteration allocations** — **done: 7 min → 6:15 (zero-alloc `transform!` + pre-computed query points)**
+  > **Note:** The `transform!` rewrite uses scalar R×point+t instead of BLAS matrix multiply. IEEE 754 floating-point is not associative, so operation order differences can cause ~1e-16 per-op rounding drift. In 205×205 testing, 42,024/42,025 distances were bit-identical; 1 pair near a convergence boundary differed by 0.033 (0.09%). This is expected and harmless for ICP.
+- [x] ~~ICP: Tune GC with `GC.gc(false)` between comparisons~~ — **tested: made it slower** (overhead of per-pair GC calls > benefit, since allocations are already reduced by previous optimizations)
+- [x] ICP: Batch boundary filtering with `Set` instead of row-by-row matrix copies (`fragment_landmarks.jl`) — **done: single-pass filtering, ~2s gain**
+- [x] ICP: Reuse fixed point cloud PointCloud/normals/KDTree across pairs in `OMS_worker` (`icp.jl`) — **done: 9 min → 7 min (22% faster)**
 - [ ] ICP: Pre-allocate vertex matrix in XYZ parser instead of `Vector{Vector}` conversion (`xyz_reader.jl`)
 - [ ] ICP: Gate `@info` logging behind a verbose flag to reduce I/O contention
+- [ ] CSV Export: Prompt user for save location using File System Access API (`showSaveFilePicker`) with fallback to auto-download
+- [ ] Benchmark thread scaling on bigbox (64 cores/128 threads) — test 16/32/64/128 threads to find optimal cap after GC optimizations
 - [ ] `Pkg.instantiate()` fails on HTTP/MbedTLS due to parallel precompilation race condition (works manually with `using HTTP`)
 
 ## License

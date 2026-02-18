@@ -49,21 +49,22 @@ function estimate_normals!(pc::PointCloud, neighbors)
 
 end
 
-#transform 
+#transform — zero-allocation in-place version
 function transform!(pc, H)
-    XInH = euler_coord_to_homogeneous_coord([pc.x pc.y pc.z])
-    XOutH = transpose(H*XInH')
-    XOut = homogeneous_coord_to_euler_coord(XOutH)
-    pc.x = XOut[:,1]
-    pc.y = XOut[:,2]
-    pc.z = XOut[:,3]
+    R = @view H[1:3, 1:3]
+    t = @view H[1:3, 4]
+    @inbounds for i in 1:pc.no_points
+        x, y, z = pc.x[i], pc.y[i], pc.z[i]
+        pc.x[i] = R[1,1]*x + R[1,2]*y + R[1,3]*z + t[1]
+        pc.y[i] = R[2,1]*x + R[2,2]*y + R[2,3]*z + t[2]
+        pc.z[i] = R[3,1]*x + R[3,2]*y + R[3,3]*z + t[3]
+    end
     return pc
 end
 
-#find coordinate correspondences
-function matching!(pcmov::PointCloud, pcfix)
+#find coordinate correspondences (with pre-computed query points)
+function matching!(pcmov::PointCloud, pcfix, query_points::Matrix{Float64})
     kdtree = KDTree([pcmov.x'; pcmov.y'; pcmov.z'])
-    query_points = [pcfix.x[pcfix.sel]';pcfix.y[pcfix.sel]';pcfix.z[pcfix.sel]']
     idxNN, = knn(kdtree, query_points, 1)
     pcmov.sel = vcat(idxNN...)
     dx = pcmov.x[pcmov.sel] - pcfix.x[pcfix.sel]

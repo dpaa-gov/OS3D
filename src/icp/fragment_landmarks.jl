@@ -12,25 +12,21 @@ function remove_fragmented_margins(fixed_array::Matrix, moving_array::Matrix,
     test1 = idxdst(fixed_array', moving_array')
     test2 = idxdst(moving_array', fixed_array')
     
-    # Remove moving boundary points from test1
-    if !isempty(moving_boundary_indices)
-        keep_rows1 = setdiff(1:size(test1, 1), moving_boundary_indices)
-        test1 = test1[keep_rows1, :]
+    # test1: rows = moving points, col 1 = nearest fixed index
+    # Exclude moving boundary points as sources, fixed boundary points as targets
+    mov_boundary_set = Set(moving_boundary_indices)
+    fix_boundary_set = Set(fixed_boundary_indices)
+    
+    if !isempty(moving_boundary_indices) || !isempty(fixed_boundary_indices)
+        keep1 = [!(i in mov_boundary_set) && !(Int(test1[i, 1]) in fix_boundary_set) for i in 1:size(test1, 1)]
+        test1 = test1[keep1, :]
     end
     
-    # Remove fixed boundary points from test2
-    if !isempty(fixed_boundary_indices)
-        keep_rows2 = setdiff(1:size(test2, 1), fixed_boundary_indices)
-        test2 = test2[keep_rows2, :]
-    end
-    
-    # Remove correspondences to boundary points
-    for idx in fixed_boundary_indices
-        test1 = test1[test1[:, 1] .!= idx, :]
-    end
-    
-    for idx in moving_boundary_indices
-        test2 = test2[test2[:, 1] .!= idx, :]
+    # test2: rows = fixed points, col 1 = nearest moving index
+    # Exclude fixed boundary points as sources, moving boundary points as targets
+    if !isempty(fixed_boundary_indices) || !isempty(moving_boundary_indices)
+        keep2 = [!(i in fix_boundary_set) && !(Int(test2[i, 1]) in mov_boundary_set) for i in 1:size(test2, 1)]
+        test2 = test2[keep2, :]
     end
     
     # Percentile-based Hausdorff Distance
