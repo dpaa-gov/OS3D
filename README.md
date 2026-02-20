@@ -265,6 +265,10 @@ If you use this software, please cite it as:
 
 > Lynch, J.J. 2026. OS3D. Osteometric Sorting 3D. Version 0.1.0. Defense POW/MIA Accounting Agency, Offutt AFB, NE.
 
+## Future Features
+
+- **Use mesh face normals directly for ICP**: Currently, surface normals are estimated from the point cloud via KNN (`estimate_normals!`). Since the input originates from PLY meshes with face connectivity, the true vertex normals could be computed from adjacent face normals and carried through the XYZ pipeline. This would eliminate the KNN-based normal estimation step and may improve ICP convergence accuracy, particularly on sharp ridges or thin features where estimated normals can be unreliable.
+
 ## TODO
 
 - [ ] Test normalized Hausdorff distance for fragmentary remains
