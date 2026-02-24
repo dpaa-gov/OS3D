@@ -281,7 +281,7 @@ If you use this software, please cite it as:
 - [x] ICP: Batch boundary filtering with `Set` instead of row-by-row matrix copies (`fragment_landmarks.jl`) — **done: single-pass filtering, ~2s gain**
 - [x] ICP: Reuse fixed point cloud PointCloud/normals/KDTree across pairs in `OMS_worker` (`icp.jl`) — **done: 9 min → 7 min (22% faster)**
 - [ ] ICP: Pre-allocate vertex matrix in XYZ parser instead of `Vector{Vector}` conversion (`xyz_reader.jl`)
-- [ ] ICP: Gate `@info` logging behind a verbose flag to reduce I/O contention
+- [x] ~~ICP: Gate `@info` logging behind a verbose flag to reduce I/O contention~~ — **done: removed per-pair `@info` calls entirely (kept one-time OMS summary)**
 - [ ] CSV Export: Prompt user for save location using File System Access API (`showSaveFilePicker`) with fallback to auto-download
 - [ ] Benchmark thread scaling on bigbox (64 cores/128 threads) — test 16/32/64/128 threads to find optimal cap after GC optimizations
 - [ ] `Pkg.instantiate()` fails on HTTP/MbedTLS due to parallel precompilation race condition (works manually with `using HTTP`)

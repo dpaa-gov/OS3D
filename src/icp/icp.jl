@@ -86,7 +86,7 @@ function simpleicp_new(data_fix, data_mov, pcfix, sel_orig;
     fix_coords, mov_coords = get_corresponding_landmark_coords(data_fix, data_mov)
     
    if size(fix_coords, 1) >= 3
-        @info "Start point-to-point initial alignment with $(size(fix_coords, 1)) landmarks..."
+
         # Mirror the moving landmarks X coordinate too
         mov_coords[:, 1] = mov_coords[:, 1] * -1
 
@@ -109,7 +109,7 @@ function simpleicp_new(data_fix, data_mov, pcfix, sel_orig;
     # Pre-compute query points — same every iteration since pcfix.sel is restored to sel_orig
     query_points = [pcfix.x[sel_orig]'; pcfix.y[sel_orig]'; pcfix.z[sel_orig]']
     
-    @info "Start point-to-plane alignment..."
+
     for i in 1:max_iterations
         initial_distances = matching!(pcmov, pcfix, query_points)
         reject!(pcmov, pcfix, min_planarity, initial_distances)
@@ -126,13 +126,13 @@ function simpleicp_new(data_fix, data_mov, pcfix, sel_orig;
         
         if i > 1
             if check_convergence_criteria(residual_distances[i], residual_distances[i-1], min_change)
-                @info "Convergence criteria fulfilled after $i iterations!"
+
                 break
             end
         end
     end
     
-    @info "Calculating Hausdorff distance..."
+
     
     # Use boundary indices from XYZData (already excludes landmarks)
     HDist = remove_fragmented_margins(
