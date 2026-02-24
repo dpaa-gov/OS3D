@@ -14,7 +14,7 @@ A web-based application for 3D mesh visualization, anatomical landmarking, and o
 - **Landmark Placement**: Click to place anatomical landmarks on 3D models
 - **Hole Detection**: Automatic boundary/hole detection on meshes
 - **Batch Processing**: Process multiple PLY files and export to XYZ format
-- **Distributed ICP Comparison**: Compare left/right bone pairs using distributed computing
+- **Threaded ICP Comparison**: Compare left/right bone pairs using multithreaded computing
 
 ## Architecture
 
@@ -24,14 +24,14 @@ OS3D runs as a single Julia process:
 
 ## System Requirements
 
-OS3D uses Julia's built-in threading for parallel ICP comparisons. All threads share a single process and runtime, so memory usage is much lower than the previous multi-process architecture.
+OS3D uses Julia's built-in threading for parallel ICP comparisons. All threads share a single process and runtime, so memory usage scales modestly.
 
 ```
 Base RAM ≈ 500 MB – 1 GB (Julia runtime + loaded packages + web server)
 Per-thread ≈ 5 – 20 MB (loaded meshes, KD-trees, normals)
 ```
 
-Each thread loads its own copy of the fixed and moving point clouds during comparison, so memory does scale with thread count — but at ~5–20 MB per thread (for typical 10K–50K vertex scans), not the ~300 MB per worker from the previous Distributed architecture.
+Each thread loads its own copy of the fixed and moving point clouds during comparison, so memory does scale with thread count — but at ~5–20 MB per thread for typical 10K–50K vertex scans.
 
 > **Recommended:** Julia 1.11+ with 4+ threads. Launch Julia with `--threads=auto` (used by `start.sh`) to use all available cores.
 
@@ -163,7 +163,7 @@ Use these to verify the landmarking, boundary detection, and ICP comparison work
 1. Click **Browse** to select a folder containing XYZ files
 2. Files are automatically sorted into Left/Right based on filename
 3. Adjust **Hausdorff Percentage** (default 0.95)
-4. Click **▶️ Run Comparisons** to start distributed ICP analysis
+4. Click **▶️ Run Comparisons** to start ICP analysis
 5. Use **Best Matches Count** slider (1–20) to control how many top matches to display
 6. View results in **Best Matches** or **All Results** tabs
 7. Click **📥 Export CSV** to download results
@@ -273,18 +273,23 @@ If you use this software, please cite it as:
 
 - [ ] Test normalized Hausdorff distance for fragmentary remains
 - [ ] Check vertex counts in Artec real-time fusion models and evaluate mesh reduction
-- [x] ~~ICP: Avoid rebuilding KD-tree every iteration in `matching!()`~~ — **not possible unconditionally**: tree is on the moving cloud which transforms every iteration
-- [ ] ICP: Skip KD-tree rebuild in later iterations when `‖dH - I‖ < ε` — correspondences unlikely to change near convergence; rebuild early iterations + every Nth iteration or based on transform magnitude
-- [x] **ICP: Pre-allocate buffers for SVD/covariance/normals to reduce per-iteration allocations** — **done: 7 min → 6:15 (zero-alloc `transform!` + pre-computed query points)**
-  > **Note:** The `transform!` rewrite uses scalar R×point+t instead of BLAS matrix multiply. IEEE 754 floating-point is not associative, so operation order differences can cause ~1e-16 per-op rounding drift. In 205×205 testing, 42,024/42,025 distances were bit-identical; 1 pair near a convergence boundary differed by 0.033 (0.09%). This is expected and harmless for ICP.
-- [x] ~~ICP: Tune GC with `GC.gc(false)` between comparisons~~ — **tested: made it slower** (overhead of per-pair GC calls > benefit, since allocations are already reduced by previous optimizations)
-- [x] ICP: Batch boundary filtering with `Set` instead of row-by-row matrix copies (`fragment_landmarks.jl`) — **done: single-pass filtering, ~2s gain**
-- [x] ICP: Reuse fixed point cloud PointCloud/normals/KDTree across pairs in `OMS_worker` (`icp.jl`) — **done: 9 min → 7 min (22% faster)**
+- [ ] ICP: Skip KD-tree rebuild in later iterations when `‖dH - I‖ < ε` — correspondences unlikely to change near convergence
 - [ ] ICP: Pre-allocate vertex matrix in XYZ parser instead of `Vector{Vector}` conversion (`xyz_reader.jl`)
-- [x] ~~ICP: Gate `@info` logging behind a verbose flag to reduce I/O contention~~ — **done: removed per-pair `@info` calls entirely (kept one-time OMS summary)**
-- [ ] CSV Export: Prompt user for save location using File System Access API (`showSaveFilePicker`) with fallback to auto-download
-- [ ] Benchmark thread scaling on bigbox (64 cores/128 threads) — test 16/32/64/128 threads to find optimal cap after GC optimizations
+- [ ] Benchmark thread scaling on bigbox (64 cores/128 threads)
 - [ ] `Pkg.instantiate()` fails on HTTP/MbedTLS due to parallel precompilation race condition (works manually with `using HTTP`)
+
+<details>
+<summary>Completed</summary>
+
+- [x] ICP: Pre-allocate buffers for SVD/covariance/normals — **7 min → 6:15 (zero-alloc `transform!` + pre-computed query points)**
+- [x] ICP: Batch boundary filtering with `Set` — **single-pass filtering, ~2s gain**
+- [x] ICP: Reuse fixed PointCloud across pairs — **9 min → 7 min (22% faster)**
+- [x] ICP: Removed per-pair `@info` logging (kept one-time OMS summary)
+- [x] CSV Export: Save location prompt via `showSaveFilePicker` with auto-download fallback
+- [x] ~~ICP: Avoid rebuilding KD-tree every iteration~~ — not possible unconditionally (tree is on moving cloud)
+- [x] ~~ICP: Tune GC with `GC.gc(false)`~~ — tested, made it slower
+
+</details>
 
 ## License
 

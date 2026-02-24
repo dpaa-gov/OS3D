@@ -608,7 +608,8 @@ async function runComparison() {
             if (mins > 0) parts.push(`${mins} ${mins === 1 ? 'minute' : 'minutes'}`);
             parts.push(`${secs} ${secs === 1 ? 'second' : 'seconds'}`);
             const completedEl = document.getElementById('completed-time');
-            completedEl.textContent = `Completed in ${parts.join(' ')}`;
+            const totalComparisons = leftFiles.length * rightFiles.length;
+            completedEl.textContent = `${totalComparisons} comparisons in ${parts.join(' ')}`;
             completedEl.style.display = '';
 
             // Play notification chime on successful completion
@@ -847,7 +848,7 @@ function goToPage(tableType, page) {
     }
 }
 
-function exportResultsCSV() {
+async function exportResultsCSV() {
     // Export based on active tab
     let results;
     let filename;
@@ -876,11 +877,34 @@ function exportResultsCSV() {
         now.getMinutes().toString().padStart(2, '0') +
         now.getSeconds().toString().padStart(2, '0');
 
+    const suggestedName = `${filename}_${timestamp}.csv`;
+
+    // Try native save dialog (Chrome/Edge), fall back to auto-download
+    if (window.showSaveFilePicker) {
+        try {
+            const handle = await window.showSaveFilePicker({
+                suggestedName,
+                types: [{
+                    description: 'CSV Files',
+                    accept: { 'text/csv': ['.csv'] }
+                }]
+            });
+            const writable = await handle.createWritable();
+            await writable.write(csv);
+            await writable.close();
+            return;
+        } catch (err) {
+            // User cancelled the dialog — don't fall through to auto-download
+            if (err.name === 'AbortError') return;
+        }
+    }
+
+    // Fallback: auto-download
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${filename}_${timestamp}.csv`;
+    a.download = suggestedName;
     a.click();
     URL.revokeObjectURL(url);
 }
