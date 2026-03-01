@@ -1,4 +1,4 @@
-# Osteometric Sorting 3D (OS3D) v0.1.0
+# Osteometric Sorting 3D (OS3D) v1.0.0
 
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
 ![Julia](https://img.shields.io/badge/Julia-1.11-9558B2?logo=julia&logoColor=white)
@@ -114,8 +114,8 @@ npm run build
 
 | Platform | Output |
 |----------|--------|
-| **Linux** | `dist/OS3D-0.1.0.AppImage` |
-| **Windows** | `dist/OS3D Setup 0.1.0.exe` |
+| **Linux** | `dist/OS3D-1.0.0.AppImage` |
+| **Windows** | `dist/OS3D Setup 1.0.0.exe` |
 
 ### Windows Installer
 
