@@ -1,18 +1,11 @@
 ## Precompile workload for PackageCompiler sysimage
 ## Exercises hot paths so they're AOT-compiled into the sysimage
 
-# === Genie / Web Server packages ===
-using Genie
-using Genie.Router
-using Genie.Renderer.Html
-using Genie.Renderer.Json
-using Genie.Requests
-using HTTP
 using JSON3
 
-# JSON round-trip
-json_str = JSON3.write(Dict("key" => "value", "num" => 42))
-JSON3.read(json_str)
+# JSON round-trip (sidecar protocol)
+json_str = JSON3.write(Dict("command" => "list_ply", "directory" => "/tmp"))
+JSON3.read(json_str, Dict{String,Any})
 
 # === ICP / Scientific packages ===
 using NearestNeighbors

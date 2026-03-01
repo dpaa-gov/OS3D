@@ -1,6 +1,10 @@
 # Build artifacts
-dist/
 Manifest.toml
+node_modules/
+package-lock.json
+dist/
+out/
+sidecar/
 .agent/
 
 # OS-level

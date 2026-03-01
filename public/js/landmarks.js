@@ -67,6 +67,63 @@ class LandmarkManager {
     }
 
     /**
+     * Remove a single landmark by its index number from current file
+     */
+    removeLandmark(landmarkIndex) {
+        if (!this.currentFilePath) return;
+        const landmarks = this.landmarksPerFile.get(this.currentFilePath);
+        if (!landmarks) return;
+        this.landmarksPerFile.set(
+            this.currentFilePath,
+            landmarks.filter(lm => lm.index !== landmarkIndex)
+        );
+    }
+
+    /**
+     * Rename a landmark's index number
+     * Returns false if newIndex already exists
+     */
+    renameLandmark(oldIndex, newIndex) {
+        if (!this.currentFilePath) return false;
+        const landmarks = this.landmarksPerFile.get(this.currentFilePath);
+        if (!landmarks) return false;
+
+        // Check for duplicates
+        if (landmarks.some(lm => lm.index === newIndex)) {
+            return false;
+        }
+
+        const lm = landmarks.find(l => l.index === oldIndex);
+        if (lm) {
+            lm.index = newIndex;
+        }
+        return true;
+    }
+
+    /**
+     * Get the next available (unused) landmark number for current file
+     */
+    getNextAvailableNumber(startFrom = 1) {
+        if (!this.currentFilePath) return startFrom;
+        const landmarks = this.landmarksPerFile.get(this.currentFilePath) || [];
+        const usedNumbers = new Set(landmarks.map(lm => lm.index));
+        let num = startFrom;
+        while (usedNumbers.has(num)) {
+            num++;
+        }
+        return num;
+    }
+
+    /**
+     * Check if a landmark number is already used for current file
+     */
+    isNumberUsed(num) {
+        if (!this.currentFilePath) return false;
+        const landmarks = this.landmarksPerFile.get(this.currentFilePath) || [];
+        return landmarks.some(lm => lm.index === num);
+    }
+
+    /**
      * Set boundary indices for current file
      */
     setBoundaryIndices(indices) {

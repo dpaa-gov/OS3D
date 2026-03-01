@@ -389,6 +389,7 @@ body {
     padding: 0.6rem 0.75rem;
     border-bottom: 1px solid var(--border-color);
     font-size: 0.85rem;
+    gap: 0.75rem;
 }
 
 .landmark-item:last-child {
@@ -412,6 +413,119 @@ body {
     color: var(--text-secondary);
     font-family: 'Monaco', 'Consolas', monospace;
     font-size: 0.75rem;
+    flex: 1;
+    min-width: 0;
+}
+
+/* Next Landmark # Control */
+.next-landmark-control {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-primary);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+}
+
+.next-landmark-control label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.landmark-num-input {
+    width: 60px;
+    padding: 0.35rem 0.5rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+    transition: var(--transition);
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.landmark-num-input::-webkit-inner-spin-button,
+.landmark-num-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.landmark-num-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.landmark-num-input.input-warning {
+    border-color: var(--warning);
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3);
+}
+
+/* Editable Index Badge */
+.editable-index {
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.editable-index:hover {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+/* Inline Rename Input */
+.landmark-rename-input {
+    width: 40px;
+    padding: 0.15rem 0.25rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--accent-primary);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-align: center;
+    box-shadow: 0 0 0 3px var(--accent-glow);
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.landmark-rename-input::-webkit-inner-spin-button,
+.landmark-rename-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.landmark-rename-input:focus {
+    outline: none;
+}
+
+/* Landmark Delete Button */
+.landmark-delete-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 0.15rem 0.3rem;
+    border-radius: 4px;
+    transition: var(--transition);
+    opacity: 0;
+    flex-shrink: 0;
+}
+
+.landmark-item:hover .landmark-delete-btn {
+    opacity: 1;
+}
+
+.landmark-delete-btn:hover {
+    color: var(--danger);
+    background: rgba(239, 68, 68, 0.15);
 }
 
 .placeholder-text {
@@ -438,7 +552,8 @@ body {
     display: grid;
     grid-template-columns: 1fr 280px 1fr;
     gap: 1rem;
-    flex: 0 0 360px;
+    flex: 0 1 auto;
+    max-height: 360px;
     min-height: 0;
 }
 
@@ -564,7 +679,8 @@ input[type="range"]::-webkit-slider-thumb:hover {
     color: var(--success);
     font-weight: 500;
     text-align: center;
-    width: 100%;
+    display: block;
+    margin-top: -0.5rem;
 }
 
 .results-tabs {

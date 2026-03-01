@@ -70,17 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initLandmarksTab();
     initAnalysisTab();
     initBrowserModal();
-    initHeartbeat();
 });
-
-// ====== Heartbeat — keeps server alive while browser is open ======
-function initHeartbeat() {
-    const sendHeartbeat = () => {
-        fetch('/api/heartbeat', { method: 'POST' }).catch(() => { });
-    };
-    sendHeartbeat(); // Initial ping
-    setInterval(sendHeartbeat, 5000); // Every 5 seconds
-}
 
 // ====== Tab Navigation ======
 function initTabs() {
@@ -151,6 +141,29 @@ function initLandmarksTab() {
     document.getElementById('detect-holes-btn').addEventListener('click', () => {
         detectHoles();
     });
+
+    // Next landmark number input
+    const nextNumInput = document.getElementById('next-landmark-num');
+    nextNumInput.addEventListener('change', () => {
+        const num = parseInt(nextNumInput.value);
+        if (num >= 1 && app.landmarks.viewer) {
+            app.landmarks.viewer.setNextLandmarkNumber(num);
+            // Warn if number is already used
+            if (app.landmarks.manager.isNumberUsed(num)) {
+                nextNumInput.classList.add('input-warning');
+            } else {
+                nextNumInput.classList.remove('input-warning');
+            }
+        }
+    });
+    nextNumInput.addEventListener('input', () => {
+        const num = parseInt(nextNumInput.value);
+        if (num >= 1 && app.landmarks.manager.isNumberUsed(num)) {
+            nextNumInput.classList.add('input-warning');
+        } else {
+            nextNumInput.classList.remove('input-warning');
+        }
+    });
 }
 
 async function loadLandmarkDirectory(directory) {
@@ -158,13 +171,7 @@ async function loadLandmarkDirectory(directory) {
     document.getElementById('landmark-path').value = directory;
 
     try {
-        const response = await fetch('/api/ply/list', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ directory })
-        });
-
-        const data = await response.json();
+        const data = await window.os3d.invoke('list_ply_files', { directory });
 
         if (data.error) {
             alert('Error: ' + data.error);
@@ -186,6 +193,12 @@ async function loadLandmarkDirectory(directory) {
                 app.landmarks.viewer.onLandmarkPlaced = (landmark) => {
                     app.landmarks.manager.addLandmark(landmark);
                     updateLandmarkList();
+                    // Auto-advance to next available number
+                    const nextNum = app.landmarks.manager.getNextAvailableNumber(landmark.index + 1);
+                    app.landmarks.viewer.setNextLandmarkNumber(nextNum);
+                    const nextNumInput = document.getElementById('next-landmark-num');
+                    nextNumInput.value = nextNum;
+                    nextNumInput.classList.remove('input-warning');
                 };
             }
 
@@ -235,6 +248,13 @@ async function loadCurrentModel() {
         updateModelInfo();
         updateLandmarkList();
         updateNavigationButtons();
+
+        // Sync next landmark number input to the next available for this model
+        const nextNum = app.landmarks.manager.getNextAvailableNumber();
+        app.landmarks.viewer.setNextLandmarkNumber(nextNum);
+        const nextNumInput = document.getElementById('next-landmark-num');
+        nextNumInput.value = nextNum;
+        nextNumInput.classList.remove('input-warning');
 
         // Re-apply boundary highlights if previously detected
         const storedBoundaries = app.landmarks.manager.getCurrentBoundaries();
@@ -293,11 +313,88 @@ function updateLandmarkList() {
     }
 
     list.innerHTML = landmarks.map(lm => `
-        <div class="landmark-item">
-            <span class="index">${lm.index}</span>
+        <div class="landmark-item" data-landmark-index="${lm.index}">
+            <span class="index editable-index" title="Click to renumber">${lm.index}</span>
             <span class="coords">(${lm.x.toFixed(2)}, ${lm.y.toFixed(2)}, ${lm.z.toFixed(2)})</span>
+            <button class="landmark-delete-btn" title="Remove landmark">✕</button>
         </div>
     `).join('');
+
+    // Attach click handlers for editable index badges
+    list.querySelectorAll('.editable-index').forEach(badge => {
+        badge.addEventListener('click', (e) => {
+            const item = e.target.closest('.landmark-item');
+            const oldIndex = parseInt(item.dataset.landmarkIndex);
+            const currentVal = e.target.textContent;
+
+            // Replace badge with an input
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.min = '1';
+            input.value = currentVal;
+            input.className = 'landmark-rename-input';
+            e.target.replaceWith(input);
+            input.focus();
+            input.select();
+
+            const commitRename = () => {
+                const newIndex = parseInt(input.value);
+                if (isNaN(newIndex) || newIndex < 1) {
+                    updateLandmarkList(); // revert
+                    return;
+                }
+                if (newIndex === oldIndex) {
+                    updateLandmarkList(); // no change
+                    return;
+                }
+                const success = app.landmarks.manager.renameLandmark(oldIndex, newIndex);
+                if (!success) {
+                    alert(`Landmark #${newIndex} already exists.`);
+                    updateLandmarkList(); // revert
+                    return;
+                }
+                app.landmarks.viewer.updateLandmarkNumber(oldIndex, newIndex);
+                updateLandmarkList();
+                // Update next-landmark input in case it should change
+                const nextNum = app.landmarks.manager.getNextAvailableNumber();
+                const nextNumInput = document.getElementById('next-landmark-num');
+                nextNumInput.value = nextNum;
+                app.landmarks.viewer.setNextLandmarkNumber(nextNum);
+                nextNumInput.classList.remove('input-warning');
+            };
+
+            input.addEventListener('blur', commitRename);
+            input.addEventListener('keydown', (ev) => {
+                if (ev.key === 'Enter') {
+                    ev.preventDefault();
+                    input.blur();
+                }
+                if (ev.key === 'Escape') {
+                    updateLandmarkList(); // revert
+                }
+            });
+        });
+    });
+
+    // Attach click handlers for delete buttons
+    list.querySelectorAll('.landmark-delete-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const item = e.target.closest('.landmark-item');
+            const lmIndex = parseInt(item.dataset.landmarkIndex);
+
+            // Remove from manager and viewer
+            app.landmarks.manager.removeLandmark(lmIndex);
+            app.landmarks.viewer.removeLandmarkByIndex(lmIndex);
+            updateLandmarkList();
+
+            // Update next-landmark input
+            const nextNum = app.landmarks.manager.getNextAvailableNumber();
+            const nextNumInput = document.getElementById('next-landmark-num');
+            nextNumInput.value = nextNum;
+            app.landmarks.viewer.setNextLandmarkNumber(nextNum);
+            nextNumInput.classList.remove('input-warning');
+        });
+    });
 }
 
 function resetCurrentLandmarks() {
@@ -306,6 +403,14 @@ function resetCurrentLandmarks() {
     app.landmarks.viewer.resetLandmarks();
     app.landmarks.manager.resetCurrentLandmarks();
     updateLandmarkList();
+
+    // Reset next landmark input to 1
+    const nextNumInput = document.getElementById('next-landmark-num');
+    nextNumInput.value = 1;
+    if (app.landmarks.viewer) {
+        app.landmarks.viewer.setNextLandmarkNumber(1);
+    }
+    nextNumInput.classList.remove('input-warning');
 }
 
 async function detectHoles() {
@@ -327,13 +432,7 @@ async function detectHoles() {
     startTimer();
 
     try {
-        const response = await fetch('/api/mesh/boundaries', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path: filepath })
-        });
-
-        const data = await response.json();
+        const data = await window.os3d.invoke('detect_holes', { path: filepath });
 
         // Hide loading modal
         stopTimer();
@@ -423,16 +522,10 @@ async function saveAllLandmarks() {
     startTimer();
 
     try {
-        const response = await fetch('/api/landmarks/saveall', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                files: filesData,
-                sourceDirectory: app.landmarks.directory
-            })
+        const data = await window.os3d.invoke('save_all_landmarks', {
+            files: filesData,
+            sourceDirectory: app.landmarks.directory
         });
-
-        const data = await response.json();
 
         // Hide loading modal and stop timer
         stopTimer();
@@ -515,13 +608,7 @@ async function loadAnalysisDirectory(directory) {
     document.getElementById('analysis-path').value = directory;
 
     try {
-        const response = await fetch('/api/analysis/files', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ directory })
-        });
-
-        const data = await response.json();
+        const data = await window.os3d.invoke('get_analysis_files', { directory });
 
         if (data.error) {
             alert('Error: ' + data.error);
@@ -579,17 +666,11 @@ async function runComparison() {
     startTimer();
 
     try {
-        const response = await fetch('/api/analysis/run', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                leftFiles,
-                rightFiles,
-                percentage
-            })
+        const data = await window.os3d.invoke('run_comparison', {
+            leftFiles,
+            rightFiles,
+            percentage
         });
-
-        const data = await response.json();
 
         if (data.error) {
             alert('Error: ' + data.error);
@@ -879,34 +960,21 @@ async function exportResultsCSV() {
 
     const suggestedName = `${filename}_${timestamp}.csv`;
 
-    // Try native save dialog (Chrome/Edge), fall back to auto-download
-    if (window.showSaveFilePicker) {
-        try {
-            const handle = await window.showSaveFilePicker({
-                suggestedName,
-                types: [{
-                    description: 'CSV Files',
-                    accept: { 'text/csv': ['.csv'] }
-                }]
-            });
-            const writable = await handle.createWritable();
-            await writable.write(csv);
-            await writable.close();
-            return;
-        } catch (err) {
-            // User cancelled the dialog — don't fall through to auto-download
-            if (err.name === 'AbortError') return;
-        }
+    // Download CSV via browser
+    try {
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = suggestedName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (err) {
+        console.error('Failed to export CSV:', err);
+        alert('Failed to export CSV: ' + err);
     }
-
-    // Fallback: auto-download
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = suggestedName;
-    a.click();
-    URL.revokeObjectURL(url);
 }
 
 function clearResults() {
@@ -991,8 +1059,7 @@ async function openBrowserModal(inputElement, onSelect) {
     let startPath = inputElement.value;
     if (!startPath) {
         try {
-            const resp = await fetch('/api/homedir');
-            const data = await resp.json();
+            const data = await window.os3d.invoke('get_homedir');
             startPath = data.path || '/';
         } catch {
             startPath = '/';
@@ -1011,13 +1078,7 @@ function closeBrowserModal() {
 
 async function browseDirectory(path) {
     try {
-        const response = await fetch('/api/browse', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path })
-        });
-
-        const data = await response.json();
+        const data = await window.os3d.invoke('browse_directory', { path });
 
         if (data.error) {
             alert('Error: ' + data.error);
@@ -1059,3 +1120,6 @@ function renderDirectoryListing(entries) {
         });
     });
 }
+
+// Disable right-click context menu for native app feel
+document.addEventListener('contextmenu', (e) => e.preventDefault());

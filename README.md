@@ -2,11 +2,12 @@
 
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
 ![Julia](https://img.shields.io/badge/Julia-1.11-9558B2?logo=julia&logoColor=white)
+![Electron](https://img.shields.io/badge/Electron-34-47848F?logo=electron&logoColor=white)
 ![Linux](https://img.shields.io/badge/Linux-passing-brightgreen?logo=linux&logoColor=white)
 ![Windows](https://img.shields.io/badge/Windows-untested-lightgrey?logo=windows&logoColor=white)
 ![Status](https://img.shields.io/badge/status-in%20development-yellow)
 
-A web-based application for 3D mesh visualization, anatomical landmarking, and osteometric comparison analysis using ICP (Iterative Closest Point) registration.
+A desktop application for 3D mesh visualization, anatomical landmarking, and osteometric comparison analysis using ICP (Iterative Closest Point) registration. Built with Electron + Julia.
 
 ## Features
 
@@ -14,110 +15,116 @@ A web-based application for 3D mesh visualization, anatomical landmarking, and o
 - **Landmark Placement**: Click to place anatomical landmarks on 3D models
 - **Hole Detection**: Automatic boundary/hole detection on meshes
 - **Batch Processing**: Process multiple PLY files and export to XYZ format
-- **Threaded ICP Comparison**: Compare left/right bone pairs using multithreaded computing
+- **Threaded ICP Comparison**: Compare left/right bone pairs using multithreaded computing (up to 56 threads)
+- **Offline**: Works entirely offline — no internet connection required
 
 ## Architecture
 
-OS3D runs as a single Julia process:
-- **Genie Web App** (port 8000): Handles web UI, file browsing, landmarking, and ICP comparisons
-- **ICP comparisons** run in-process using Julia's built-in threading (`Threads.@spawn`)
+```
+┌─────────────────────────────────────────┐
+│       Electron BrowserWindow            │
+│  HTML/CSS/JS + Three.js 3D viewer       │
+└──────────────┬──────────────────────────┘
+               │ ipcRenderer.invoke()
+┌──────────────┴──────────────────────────┐
+│       Electron Main Process (Node.js)   │
+│  IPC handlers, file I/O, sidecar mgmt   │
+└──────────────┬──────────────────────────┘
+               │ stdin/stdout JSON
+┌──────────────┴──────────────────────────┐
+│         Julia Sidecar (OS3D.jl)         │
+│  PLY processing, hole detection, ICP    │
+└─────────────────────────────────────────┘
+```
+
+- **Frontend**: Vanilla JS + Three.js in an Electron BrowserWindow
+- **Electron main process**: Handles window management, file system access, and IPC
+- **Julia sidecar**: Runs as a subprocess, communicating via JSON over stdin/stdout. Handles PLY processing, hole detection, landmark management, and ICP comparisons
 
 ## System Requirements
 
-OS3D uses Julia's built-in threading for parallel ICP comparisons. All threads share a single process and runtime, so memory usage scales modestly.
-
-```
-Base RAM ≈ 500 MB – 1 GB (Julia runtime + loaded packages + web server)
-Per-thread ≈ 5 – 20 MB (loaded meshes, KD-trees, normals)
-```
-
-Each thread loads its own copy of the fixed and moving point clouds during comparison, so memory does scale with thread count — but at ~5–20 MB per thread for typical 10K–50K vertex scans.
-
-> **Recommended:** Julia 1.11+ with 4+ threads. Launch Julia with `--threads=auto` (used by `start.sh`) to use all available cores.
+- **RAM**: ~500 MB – 1 GB base (Julia runtime + packages), ~5–20 MB per thread during comparisons
+- **Julia**: 1.11+ with 4+ threads recommended
+- **Node.js**: 18+ with npm
 
 ---
 
-## Quick Start (Standalone Bundle)
+## Quick Start (Development Mode)
 
-Pre-built bundles include a compiled `os3d` executable, Julia runtime, all packages with artifacts, and web assets — **no installation required**.
-
-### Download
-
-Download the latest release for your platform:
-- `OS3D-v0.1.0-linux-x86_64.tar.gz` (Linux)
-- `OS3D-v0.1.0-windows-x86_64.zip` (Windows)
-
-### Run
-
-```bash
-# Linux
-tar xzf OS3D-v0.1.0-linux-x86_64.tar.gz
-cd OS3D-v0.1.0-linux-x86_64
-./os3d.sh
-```
-
-```cmd
-REM Windows — extract the zip, then:
-cd OS3D-v0.1.0-windows-x86_64
-bin\os3d.exe
-```
-
-The app opens in a browser window automatically. Closing the browser will automatically shut down the server after ~15 seconds.
-
----
-
-## Development Setup
-
-For developers who want to run from source or contribute.
-
-### Requirements
-
-- Julia 1.11+
-- Required packages (see `Project.toml`)
-
-### Install Dependencies
+### 1. Clone and install dependencies
 
 ```bash
 git clone https://github.com/dpaa-gov/OS3D
 cd OS3D
+
+# Julia dependencies
 julia --project=. -e "using Pkg; Pkg.instantiate()"
+
+# Node/Electron dependencies
+npm install
 ```
 
-### Run (Development Mode)
+### 2. Run the app
 
 ```bash
-# Linux
-./start.sh
-
-# Windows
-start.bat
+npm run dev
 ```
 
-The browser will open automatically when the server is ready. Closing the browser tab will automatically shut down the server after ~15 seconds.
+This launches the Electron window. The Julia sidecar starts automatically in dev mode (no compilation needed).
 
-### Build Compiled App (Optional — Standalone Distribution)
+### Clean Build
 
-Use PackageCompiler to create a standalone compiled executable. No Julia installation required on the target machine.
+To wipe all caches and rebuild from scratch:
 
-**Linux:**
 ```bash
-bash build/package.sh
-# Output: dist/OS3D-v0.1.0-linux-x86_64.tar.gz
+# Julia
+rm -f Manifest.toml
+rm -rf ~/.julia/compiled/v1.11/OS3D
+rm -rf sidecar/
+
+# Node/Electron
+rm -rf node_modules dist out package-lock.json
+
+# Reinstall
+julia --project=. -e "using Pkg; Pkg.instantiate()"
+npm install
 ```
 
-**Windows:**
+---
+
+## Building for Distribution
+
+The build process has two steps: compile the Julia sidecar, then build the Electron app.
+
+### Step 1: Compile the Julia Sidecar
+
+```bash
+julia build/build_sysimage.jl
+```
+
+This uses PackageCompiler to create a standalone Julia executable in `sidecar/`. Takes 5–15 minutes.
+
+### Step 2: Build the Electron App
+
+```bash
+npm run build
+```
+
+**Output by platform:**
+
+| Platform | Output |
+|----------|--------|
+| **Linux** | `dist/OS3D-0.1.0.AppImage` |
+| **Windows** | `dist/OS3D Setup 0.1.0.exe` |
+
+### Windows Installer
+
+On a Windows machine with Julia and Node.js installed:
+
 ```cmd
-build\package.bat
-REM Output: dist\OS3D-v0.1.0-windows-x86_64.zip
+julia build\build_sysimage.jl
+npm run build
 ```
-
-**Windows Installer** (optional, requires [Inno Setup 6+](https://jrsoftware.org/isinfo.php)):
-```cmd
-iscc build\installer.iss
-```
-Output: `dist\OS3D-v0.1.0-windows-setup.exe` — standard setup wizard with Start Menu and desktop shortcuts.
-
-Build time is approximately 5–15 minutes. The bundle includes a compiled `os3d` executable, Julia runtime, all packages with artifacts, and web assets.
 
 ---
 
@@ -156,17 +163,17 @@ Use these to verify the landmarking, boundary detection, and ICP comparison work
 1. Click **Browse** to select a folder containing PLY files
 2. Navigate through models with **← Back** / **Next →**
 3. Click on the 3D model to place landmarks
-4. Click **🕳️ Detect Holes** to mark boundary vertices
-5. Click **💾 Save All** to export all files to XYZ format
+4. Click **Detect Holes** to mark boundary vertices
+5. Click **Save All** to export all files to XYZ format
 
 ### Analysis Tab
 1. Click **Browse** to select a folder containing XYZ files
 2. Files are automatically sorted into Left/Right based on filename
 3. Adjust **Hausdorff Percentage** (default 0.95)
-4. Click **▶️ Run Comparisons** to start ICP analysis
-5. Use **Best Matches Count** slider (1–20) to control how many top matches to display
+4. Click **Run Comparisons** to start ICP analysis
+5. Use **Best Matches Count** slider (1–20) to control top matches displayed
 6. View results in **Best Matches** or **All Results** tabs
-7. Click **📥 Export CSV** to download results
+7. Click **Export CSV** to save results
 
 ## ICP Algorithm Details
 
@@ -184,26 +191,11 @@ Boundary vertices (detected holes/fragment edges) are expanded by one ring of me
 ### Initial Alignment (Landmark-Based)
 If 3+ matching landmarks are present in both meshes, a rigid alignment is computed before ICP refinement. The moving mesh X-axis is mirrored for left/right comparison.
 
-**Algorithm: Center → Rotate → Uncenter**
-
-1. **Center**: Subtract each landmark set's centroid (`cm`, `cf`) — both sets move to origin
-2. **Rotate**: SVD of the centered cross-covariance matrix gives the optimal rotation `R`
-3. **Uncenter**: Place the rotated data at the fixed landmark centroid position
-
-```julia
-# compute_rotation centers landmarks internally for SVD
-R = compute_rotation(mov_coords, fix_coords)
-# One-liner: center on moving centroid, rotate, place at fixed centroid
-X_mov = (X_mov .- cm) * R .+ cf
-```
-
-Centering the landmarks before SVD ensures the rotation captures only orientation, not position — so alignment works regardless of how far apart the bones are in space. The "uncenter" step (`.+ cf`) places the result where the fixed cloud lives, not at the origin.
-
 **Landmark Requirements**
 
-- **Minimum**: 3 non-collinear (not in a straight line) landmarks are required to uniquely determine a rigid rotation in 3D
-- **Recommended**: 5–6 landmarks per bone end. More landmarks overdetermine the rotation, making SVD find the best-fit and improving robustness to placement error
-- **Placement**: Landmarks should be spread across the bone surface, not clustered together. Collinear or tightly grouped landmarks leave rotational ambiguity — the bone can spin around the line/cluster and still satisfy the landmark alignment
+- **Minimum**: 3 non-collinear landmarks are required to uniquely determine a rigid rotation in 3D
+- **Recommended**: 5–6 landmarks per bone end for robust alignment
+- **Placement**: Landmarks should be spread across the bone surface, not clustered together
 
 ## File Formats
 
@@ -225,12 +217,11 @@ x y z L2        # landmark 2
 ```
 OS3D/
 ├── src/
-│   ├── OS3D.jl             # Module entry point + julia_main()
-│   ├── routes.jl           # API endpoints
+│   ├── OS3D.jl                 # Module entry + sidecar command dispatcher
 │   ├── lib/
 │   │   ├── comparison.jl       # ICP comparison runner
 │   │   ├── ply_handler.jl      # PLY/XYZ file handling
-│   │   └── hole_detection.jl
+│   │   └── hole_detection.jl   # Boundary vertex detection
 │   └── icp/
 │       ├── icp.jl              # Main ICP algorithm
 │       ├── xyz_reader.jl       # XYZ file parser
@@ -239,57 +230,54 @@ OS3D/
 │       ├── knn_ind_dst.jl      # KNN utilities
 │       ├── fragment_landmarks.jl   # Boundary-aware Hausdorff
 │       └── alignment_landmarks.jl  # Landmark-based alignment
-├── app.jl              # Dev mode entry point
-├── start.sh            # Dev startup script (Linux)
-├── start.bat           # Dev startup script (Windows)
-├── VERSION             # Version number
+├── public/
+│   ├── index.html              # Main UI
+│   ├── css/styles.css          # Styling
+│   └── js/
+│       ├── app.js              # Application logic
+│       ├── three_viewer.js     # Three.js 3D viewer
+│       ├── landmarks.js        # Landmark management
+│       └── lib/                # Three.js libraries
 ├── build/
-│   ├── build_sysimage.jl   # PackageCompiler create_app builder
-│   ├── precompile_workload.jl
-│   ├── package.sh          # Linux bundle builder
-│   └── package.bat         # Windows bundle builder
-├── views/
-│   └── index.html
-└── public/
-    ├── css/
-    └── js/
+│   ├── build_sysimage.jl       # PackageCompiler build script
+│   └── precompile_workload.jl  # AOT precompilation workload
+├── main.js                     # Electron main process
+├── preload.js                  # Electron IPC bridge
+├── app.jl                      # Dev mode entry point
+├── package.json                # Electron + build config
+└── Project.toml                # Julia dependencies
 ```
-
-## Logs
-
-App output is printed to stdout. When launched via the compiled executable without a terminal, output is suppressed.
-
-## Citation
-
-If you use this software, please cite it as:
-
-> Lynch, J.J. 2026. OS3D. Osteometric Sorting 3D. Version 0.1.0. Defense POW/MIA Accounting Agency, Offutt AFB, NE.
 
 ## Future Features
 
-- **Use mesh face normals directly for ICP**: Currently, surface normals are estimated from the point cloud via KNN (`estimate_normals!`). Since the input originates from PLY meshes with face connectivity, the true vertex normals could be computed from adjacent face normals and carried through the XYZ pipeline. This would eliminate the KNN-based normal estimation step and may improve ICP convergence accuracy, particularly on sharp ridges or thin features where estimated normals can be unreliable.
+- **Use mesh face normals directly for ICP**: Currently, surface normals are estimated from the point cloud via KNN. Since the input originates from PLY meshes with face connectivity, true vertex normals could be computed from adjacent face normals and carried through the XYZ pipeline.
 
 ## TODO
 
 - [ ] Test normalized Hausdorff distance for fragmentary remains
 - [ ] Check vertex counts in Artec real-time fusion models and evaluate mesh reduction
-- [ ] ICP: Skip KD-tree rebuild in later iterations when `‖dH - I‖ < ε` — correspondences unlikely to change near convergence
-- [ ] ICP: Pre-allocate vertex matrix in XYZ parser instead of `Vector{Vector}` conversion (`xyz_reader.jl`)
+- [ ] ICP: Skip KD-tree rebuild in later iterations when `‖dH - I‖ < ε`
+- [ ] ICP: Pre-allocate vertex matrix in XYZ parser instead of `Vector{Vector}` conversion
 - [ ] Benchmark thread scaling on bigbox (64 cores/128 threads)
-- [ ] `Pkg.instantiate()` fails on HTTP/MbedTLS due to parallel precompilation race condition (works manually with `using HTTP`)
 
 <details>
 <summary>Completed</summary>
 
-- [x] ICP: Pre-allocate buffers for SVD/covariance/normals — **7 min → 6:15 (zero-alloc `transform!` + pre-computed query points)**
+- [x] Migrate from Genie web server to Tauri desktop app
+- [x] Migrate from Tauri to Electron
+- [x] ICP: Pre-allocate buffers for SVD/covariance/normals — **7 min → 6:15**
 - [x] ICP: Batch boundary filtering with `Set` — **single-pass filtering, ~2s gain**
 - [x] ICP: Reuse fixed PointCloud across pairs — **9 min → 7 min (22% faster)**
-- [x] ICP: Removed per-pair `@info` logging (kept one-time OMS summary)
-- [x] CSV Export: Save location prompt via `showSaveFilePicker` with auto-download fallback
-- [x] ~~ICP: Avoid rebuilding KD-tree every iteration~~ — not possible unconditionally (tree is on moving cloud)
-- [x] ~~ICP: Tune GC with `GC.gc(false)`~~ — tested, made it slower
+- [x] ICP: Removed per-pair `@info` logging
+- [x] CSV Export: Save location prompt via Tauri native dialog
 
 </details>
+
+## Citation
+
+If you use this software, please cite it as:
+
+> Lynch, J.J. 2026. OS3D. Osteometric Sorting 3D. Version 1.0.0. Defense POW/MIA Accounting Agency, Offutt AFB, NE.
 
 ## License
 

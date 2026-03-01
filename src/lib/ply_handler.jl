@@ -203,12 +203,13 @@ function write_xyz_with_landmarks(filepath::String, ply_data::Dict, landmarks::V
             end
         end
         
-        # Write landmarks with L marker at the end
-        for (idx, lm) in enumerate(landmarks)
+        # Write landmarks with L marker at the end (use actual landmark number, not sequential index)
+        for lm in landmarks
             x = get(lm, "x", 0.0)
             y = get(lm, "y", 0.0)
             z = get(lm, "z", 0.0)
-            println(io, "$x $y $z L$idx")
+            lm_num = get(lm, "index", 0)
+            println(io, "$x $y $z L$lm_num")
         end
     end
     

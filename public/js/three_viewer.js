@@ -15,6 +15,7 @@ class ThreeViewer {
         this.mouse = new THREE.Vector2();
         this.landmarkSpheres = [];
         this.landmarkCount = 0;
+        this.nextLandmarkNumber = 1;
         this.onLandmarkPlaced = null;
         this.isInitialized = false;
         // Boundary visualization
@@ -113,18 +114,9 @@ class ThreeViewer {
         this.clearBoundaryHighlights();
 
         try {
-            // Fetch the raw mesh file
-            const response = await fetch('/api/ply/raw', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ path: filepath })
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to load mesh file');
-            }
-
-            const arrayBuffer = await response.arrayBuffer();
+            // Load raw PLY bytes via Electron IPC
+            const bytes = await window.os3d.invoke('read_ply_raw', { path: filepath });
+            const arrayBuffer = new Uint8Array(bytes).buffer;
 
             // Load PLY geometry
             const loader = new THREE.PLYLoader();
@@ -207,8 +199,8 @@ class ThreeViewer {
 
         if (intersects.length > 0) {
             const point = intersects[0].point;
+            const landmarkIndex = this.nextLandmarkNumber;
             this.landmarkCount++;
-            const landmarkIndex = this.landmarkCount;
 
             this.addLandmarkSphere(point.x, point.y, point.z, landmarkIndex);
 
@@ -265,6 +257,7 @@ class ThreeViewer {
         sprite.position.set(x + 2.5, y + 2.5, z + 2.5);
         sprite.scale.set(5, 5, 1);
         sprite.userData.landmarkLabel = true;
+        sprite.userData.forLandmarkIndex = index;
 
         this.scene.add(sprite);
         this.landmarkSpheres.push(sprite);
@@ -281,6 +274,7 @@ class ThreeViewer {
         }
         this.landmarkSpheres = [];
         this.landmarkCount = 0;
+        this.nextLandmarkNumber = 1;
     }
 
     /**
@@ -303,6 +297,92 @@ class ThreeViewer {
 
     resetLandmarks() {
         this.clearLandmarkSpheres();
+    }
+
+    /**
+     * Set the number that will be assigned to the next placed landmark
+     */
+    setNextLandmarkNumber(num) {
+        this.nextLandmarkNumber = num;
+    }
+
+    /**
+     * Remove a landmark (sphere + label) by its landmark index number
+     */
+    removeLandmarkByIndex(landmarkIndex) {
+        const toRemove = this.landmarkSpheres.filter(obj =>
+            obj.userData.landmarkIndex === landmarkIndex || obj.userData.forLandmarkIndex === landmarkIndex
+        );
+        for (const obj of toRemove) {
+            this.scene.remove(obj);
+            if (obj.geometry) obj.geometry.dispose();
+            if (obj.material) {
+                if (obj.material.map) obj.material.map.dispose();
+                obj.material.dispose();
+            }
+        }
+        this.landmarkSpheres = this.landmarkSpheres.filter(obj =>
+            obj.userData.landmarkIndex !== landmarkIndex && obj.userData.forLandmarkIndex !== landmarkIndex
+        );
+        this.landmarkCount = Math.max(0, this.landmarkCount - 1);
+    }
+
+    /**
+     * Update a landmark's label number (for renumbering)
+     */
+    updateLandmarkNumber(oldIndex, newIndex) {
+        // Update sphere userData
+        for (const obj of this.landmarkSpheres) {
+            if (obj.userData.landmarkIndex === oldIndex) {
+                obj.userData.landmarkIndex = newIndex;
+            }
+        }
+        // Remove old label and create new one
+        const labelToRemove = this.landmarkSpheres.filter(obj => obj.userData.forLandmarkIndex === oldIndex);
+        for (const obj of labelToRemove) {
+            this.scene.remove(obj);
+            if (obj.material) {
+                if (obj.material.map) obj.material.map.dispose();
+                obj.material.dispose();
+            }
+        }
+        this.landmarkSpheres = this.landmarkSpheres.filter(obj => obj.userData.forLandmarkIndex !== oldIndex);
+
+        // Find the sphere to get position
+        const sphere = this.landmarkSpheres.find(obj => obj.userData.landmarkIndex === newIndex);
+        if (sphere) {
+            // Create new label sprite
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = 64;
+            canvas.height = 64;
+
+            context.fillStyle = '#2563eb';
+            context.beginPath();
+            context.arc(32, 32, 30, 0, 2 * Math.PI);
+            context.fill();
+
+            context.fillStyle = 'white';
+            context.font = 'bold 32px Arial';
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.fillText(newIndex.toString(), 32, 32);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const spriteMaterial = new THREE.SpriteMaterial({
+                map: texture,
+                depthTest: false,
+                depthWrite: false
+            });
+            const sprite = new THREE.Sprite(spriteMaterial);
+            sprite.position.set(sphere.position.x + 2.5, sphere.position.y + 2.5, sphere.position.z + 2.5);
+            sprite.scale.set(5, 5, 1);
+            sprite.userData.landmarkLabel = true;
+            sprite.userData.forLandmarkIndex = newIndex;
+
+            this.scene.add(sprite);
+            this.landmarkSpheres.push(sprite);
+        }
     }
 
     /**
