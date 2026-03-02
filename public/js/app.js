@@ -1081,7 +1081,9 @@ async function browseDirectory(path) {
         const data = await window.os3d.invoke('browse_directory', { path });
 
         if (data.error) {
-            alert('Error: ' + data.error);
+            // Show error inline instead of alert() — native alert breaks GTK signal handlers on Linux
+            const listing = document.getElementById('directory-listing');
+            listing.innerHTML = `<div class="placeholder-text" style="color: var(--danger);">⚠ ${data.error}</div>`;
             return;
         }
 

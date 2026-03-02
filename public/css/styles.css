@@ -9,14 +9,14 @@
     --text-primary: #e8e8e8;
     --text-secondary: #9ca3af;
     --text-muted: #6b7280;
-    --accent-primary: #2563eb;
-    --accent-secondary: #3b82f6;
-    --accent-glow: rgba(37, 99, 235, 0.3);
+    --accent-primary: #d4a843;
+    --accent-secondary: #c49a3a;
+    --accent-glow: rgba(212, 168, 67, 0.3);
     --success: #10b981;
-    --warning: #f59e0b;
+    --warning: #d4a843;
     --danger: #ef4444;
     --border-color: #3a3f4b;
-    --border-glow: rgba(37, 99, 235, 0.5);
+    --border-glow: rgba(212, 168, 67, 0.5);
     --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.3);
     --radius-sm: 6px;
     --radius-md: 10px;
@@ -81,22 +81,23 @@ body {
 .logo h1 {
     font-size: 22px;
     font-weight: 700;
-    background: linear-gradient(135deg, var(--warning), #d97706);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: var(--text-primary);
+    letter-spacing: 1px;
+}
+
+.logo .accent {
+    color: var(--accent-primary);
 }
 
 .version-badge {
-    font-size: 0.7rem;
-    font-weight: 500;
-    color: white;
-    background: linear-gradient(135deg, var(--warning), #d97706);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--bg-primary);
+    background: var(--accent-primary);
     border: none;
     border-radius: 12px;
-    padding: 2px 8px;
+    padding: 3px 10px;
     align-self: center;
-    letter-spacing: 0.5px;
 }
 
 /* ====== Tab Navigation ====== */
@@ -171,12 +172,12 @@ body {
 }
 
 .panel h3 {
-    font-size: 0.85rem;
+    font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-secondary);
-    margin-bottom: 0.75rem;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
 }
 
 .panel-section {
@@ -323,12 +324,13 @@ body {
 }
 
 .btn-warning {
-    background: linear-gradient(135deg, var(--warning), #d97706);
-    color: white;
+    background: transparent;
+    color: var(--warning);
+    border: 1px solid var(--warning);
 }
 
 .btn-warning:hover:not(:disabled) {
-    transform: translateY(-1px);
+    background: rgba(212, 168, 67, 0.1);
 }
 
 .btn-full {

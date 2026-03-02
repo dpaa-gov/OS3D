@@ -7,7 +7,7 @@
 ![Windows](https://img.shields.io/badge/Windows-untested-lightgrey?logo=windows&logoColor=white)
 ![Status](https://img.shields.io/badge/status-in%20development-yellow)
 
-A desktop application for 3D mesh visualization, anatomical landmarking, and osteometric comparison analysis using ICP (Iterative Closest Point) registration. Built with Electron + Julia.
+A desktop application for osteometric comparison analysis using ICP (Iterative Closest Point) registration. Built with Electron + Julia.
 
 ## Features
 
@@ -16,7 +16,6 @@ A desktop application for 3D mesh visualization, anatomical landmarking, and ost
 - **Hole Detection**: Automatic boundary/hole detection on meshes
 - **Batch Processing**: Process multiple PLY files and export to XYZ format
 - **Threaded ICP Comparison**: Compare left/right bone pairs using multithreaded computing (up to 56 threads)
-- **Offline**: Works entirely offline — no internet connection required
 
 ## Architecture
 
@@ -69,28 +68,6 @@ npm install
 ```bash
 npm run dev
 ```
-
-This launches the Electron window. The Julia sidecar starts automatically in dev mode (no compilation needed).
-
-### Clean Build
-
-To wipe all caches and rebuild from scratch:
-
-```bash
-# Julia
-rm -f Manifest.toml
-rm -rf ~/.julia/compiled/v1.11/OS3D
-rm -rf sidecar/
-
-# Node/Electron
-rm -rf node_modules dist out package-lock.json
-
-# Reinstall
-julia --project=. -e "using Pkg; Pkg.instantiate()"
-npm install
-```
-
----
 
 ## Building for Distribution
 
@@ -281,4 +258,4 @@ If you use this software, please cite it as:
 
 ## License
 
-GPL-2.0
+GNU General Public License v2.0
