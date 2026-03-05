@@ -154,7 +154,13 @@ Use these to verify the landmarking, boundary detection, and ICP comparison work
 
 ## ICP Algorithm Details
 
-The comparison uses point-to-plane ICP with the following features:
+The comparison uses **percentile ICP** (point-to-plane) with automatic overlap estimation, designed to handle both complete bones and fragmentary remains.
+
+### Percentile ICP Registration
+- **Overlap estimation**: The overlap ratio between two meshes is auto-estimated from their vertex count ratio: `min(n_fix, n_mov) / max(n_fix, n_mov)`, clamped to `[0.3, 1.0]`
+- **Percentile-based rejection**: Each ICP iteration keeps only correspondences with distances below the *p*-th percentile (where *p* = overlap ratio), discarding non-overlapping regions
+- **Fragment-robust**: When comparing a fragment against a complete bone, only the overlapping surface drives the alignment — non-overlapping regions are automatically ignored
+- **Backward compatible**: Two complete bones of similar size produce an overlap ratio ≈ 1.0, retaining nearly all correspondences (standard ICP behavior)
 
 ### Distance Metric
 - **Bidirectional Hausdorff Distance**: Calculates distances in both directions (fixed→moving and moving→fixed) and takes the maximum
@@ -231,7 +237,7 @@ OS3D/
 
 ## TODO
 
-- [ ] Test normalized Hausdorff distance for fragmentary remains
+- [ ] Validate percentile ICP with known fragment-to-complete test cases
 - [ ] Check vertex counts in Artec real-time fusion models and evaluate mesh reduction
 - [ ] ICP: Skip KD-tree rebuild in later iterations when `‖dH - I‖ < ε`
 - [ ] ICP: Pre-allocate vertex matrix in XYZ parser instead of `Vector{Vector}` conversion

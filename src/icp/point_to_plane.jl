@@ -77,12 +77,12 @@ function matching!(pcmov::PointCloud, pcfix, query_points::Matrix{Float64})
     return distances
 end
 
-#reject based on distance to plane
-function reject!(pcmov::PointCloud, pcfix::PointCloud, min_planarity, distances)
+#reject based on percentile of point-to-plane distances
+function reject!(pcmov::PointCloud, pcfix::PointCloud, min_planarity, distances; overlap_ratio::Float64=1.0)
     planarity = pcfix.planarity[pcfix.sel]
-    med = median(distances)
-    sigmad = mad(distances, normalize=true)
-    keep_distance = [abs(d-med) <= 3*sigmad for d in distances]
+    # Percentile ICP: keep correspondences below the p-th percentile of absolute distances
+    threshold = quantile(abs.(distances), overlap_ratio)
+    keep_distance = abs.(distances) .<= threshold
     keep_planarity = [p > min_planarity for p in planarity]
     keep = keep_distance .& keep_planarity
     pcmov.sel = pcmov.sel[keep]

@@ -100,6 +100,11 @@ function simpleicp_new(data_fix, data_mov, pcfix, sel_orig;
     # Create moving point cloud (fixed cloud is pre-built)
     pcmov = PointCloud(X_mov[:, 1], X_mov[:, 2], X_mov[:, 3])
     
+    # Auto-estimate overlap ratio from vertex count ratio (percentile ICP)
+    n_fix = size(data_fix.vertices, 1)
+    n_mov = size(data_mov.vertices, 1)
+    overlap_ratio = clamp(min(n_fix, n_mov) / max(n_fix, n_mov), 0.3, 1.0)
+    
     # Restore fixed cloud selection for this pair
     pcfix.sel = sel_orig
     
@@ -112,7 +117,7 @@ function simpleicp_new(data_fix, data_mov, pcfix, sel_orig;
 
     for i in 1:max_iterations
         initial_distances = matching!(pcmov, pcfix, query_points)
-        reject!(pcmov, pcfix, min_planarity, initial_distances)
+        reject!(pcmov, pcfix, min_planarity, initial_distances; overlap_ratio=overlap_ratio)
         
         dH, residuals = estimate_rigid_body_transformation(
             pcfix.x[pcfix.sel], pcfix.y[pcfix.sel], pcfix.z[pcfix.sel],
