@@ -514,7 +514,7 @@ body {
 
 /* ====== Landmark List ====== */
 .landmark-list {
-    max-height: 600px;
+    max-height: 400px;
     overflow-y: auto;
     background: var(--bg-primary);
     border-radius: var(--radius-sm);
