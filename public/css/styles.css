@@ -195,6 +195,15 @@ body {
     gap: 1.5rem;
     padding: 1.5rem;
     height: 100%;
+    transition: grid-template-columns 0.3s ease;
+}
+
+.landmarks-layout.ref-visible {
+    grid-template-columns: 320px 1fr 280px;
+}
+
+.reference-panel:not(.ref-visible .reference-panel) {
+    display: none;
 }
 
 .left-panel {
@@ -204,6 +213,109 @@ body {
 .viewer-panel {
     display: flex;
     flex-direction: column;
+}
+
+/* ====== Reference Panel ====== */
+.reference-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: opacity 0.3s ease, padding 0.3s ease;
+}
+
+.reference-panel.reference-hidden {
+    opacity: 0;
+    padding: 0;
+    border: none;
+    pointer-events: none;
+}
+
+.reference-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.reference-header h3 {
+    margin-bottom: 0;
+}
+
+.reference-controls {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.btn-icon {
+    background: none;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.4rem;
+    border-radius: var(--radius-sm);
+    transition: var(--transition);
+    line-height: 1;
+}
+
+.btn-icon:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--border-color);
+}
+
+.btn-icon.locked {
+    color: var(--accent-primary);
+    background: rgba(212, 168, 67, 0.15);
+    border-color: var(--accent-primary);
+}
+
+.ref-model-name {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 0.5rem;
+    padding: 0.3rem 0.5rem;
+    background: var(--bg-primary);
+    border-radius: var(--radius-sm);
+}
+
+.ref-viewer-container {
+    flex: 1;
+    background: var(--bg-primary);
+    border-radius: var(--radius-md);
+    position: relative;
+    overflow: hidden;
+    min-height: 250px;
+}
+
+.ref-viewer-container canvas {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.ref-hint {
+    padding: 0.4rem;
+    text-align: center;
+}
+
+/* ====== Keyboard Shortcut Badges ====== */
+.kbd {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-family: 'Monaco', 'Consolas', monospace;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+    padding: 0.05rem 0.35rem;
+    margin-left: 0.4rem;
+    vertical-align: middle;
+    color: var(--text-muted);
+    line-height: 1.4;
 }
 
 .viewer-container {

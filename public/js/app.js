@@ -61,6 +61,11 @@ const app = {
         currentPath: '/',
         targetInput: null,
         onSelect: null
+    },
+    // Reference viewer state
+    reference: {
+        viewer: null,
+        isVisible: false
     }
 };
 
@@ -70,7 +75,76 @@ document.addEventListener('DOMContentLoaded', () => {
     initLandmarksTab();
     initAnalysisTab();
     initBrowserModal();
+    initReferencePanel();
+    initKeyboardShortcuts();
 });
+
+// ====== Keyboard Shortcuts ======
+function initKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+        // Don't trigger shortcuts when typing in input fields
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+        // Only apply shortcuts when landmarks tab is active
+        const landmarksTab = document.getElementById('landmarks-tab');
+        if (!landmarksTab || !landmarksTab.classList.contains('active')) return;
+
+        const key = e.key;
+
+        // Arrow keys — navigate models
+        if (key === 'ArrowLeft') {
+            e.preventDefault();
+            const btn = document.getElementById('prev-model-btn');
+            if (!btn.disabled) btn.click();
+            return;
+        }
+        if (key === 'ArrowRight') {
+            e.preventDefault();
+            const btn = document.getElementById('next-model-btn');
+            if (!btn.disabled) btn.click();
+            return;
+        }
+
+        // D — Detect Holes
+        if (key === 'd' || key === 'D') {
+            e.preventDefault();
+            const btn = document.getElementById('detect-holes-btn');
+            if (!btn.disabled) btn.click();
+            return;
+        }
+
+        // Backspace — Reset Landmarks
+        if (key === 'Backspace') {
+            e.preventDefault();
+            const btn = document.getElementById('reset-landmarks-btn');
+            if (!btn.disabled) btn.click();
+            return;
+        }
+
+        // R — Set as Reference
+        if (key === 'r' || key === 'R') {
+            e.preventDefault();
+            const btn = document.getElementById('set-reference-btn');
+            if (!btn.disabled) btn.click();
+            return;
+        }
+
+        // Ctrl+S — Save All
+        if ((e.ctrlKey || e.metaKey) && key === 's') {
+            e.preventDefault();
+            const btn = document.getElementById('global-save-btn');
+            if (!btn.disabled) btn.click();
+            return;
+        }
+
+        // Escape — Clear reference panel
+        if (key === 'Escape' && app.reference.isVisible) {
+            e.preventDefault();
+            hideReferencePanel();
+            return;
+        }
+    });
+}
 
 // ====== Tab Navigation ======
 function initTabs() {
@@ -301,6 +375,7 @@ function updateNavigationButtons() {
     document.getElementById('next-model-btn').disabled = index >= total - 1;
     document.getElementById('reset-landmarks-btn').disabled = total === 0;
     document.getElementById('detect-holes-btn').disabled = total === 0;
+    document.getElementById('set-reference-btn').disabled = total === 0;
 }
 
 function updateLandmarkList() {
@@ -486,6 +561,7 @@ function clearLandmarkDirectory() {
     document.getElementById('next-model-btn').disabled = true;
     document.getElementById('reset-landmarks-btn').disabled = true;
     document.getElementById('detect-holes-btn').disabled = true;
+    document.getElementById('set-reference-btn').disabled = true;
     document.getElementById('current-model-name').textContent = 'No model loaded';
     document.getElementById('model-counter').textContent = '0 / 0';
     document.getElementById('landmark-list').innerHTML = '<p class="placeholder-text">Click on the model to place landmarks</p>';
@@ -510,13 +586,13 @@ async function saveAllLandmarks() {
     const filesData = app.landmarks.manager.getAllFilesData();
 
     if (filesData.length === 0) {
-        alert('No files to save');
+        alert('No unsaved changes');
         return;
     }
 
     // Show loading modal — set text before making visible
     document.getElementById('loading-title').textContent = 'Saving Files';
-    document.getElementById('loading-status').textContent = 'Saving files to processed folder...';
+    document.getElementById('loading-status').textContent = `Saving ${filesData.length} file(s) to processed folder...`;
     document.getElementById('elapsed-timer').textContent = '00:00';
     document.getElementById('loading-modal').classList.add('active');
 
@@ -535,7 +611,7 @@ async function saveAllLandmarks() {
         hideLoadingModal();
 
         if (data.success) {
-            alert(`Saved ${data.saved.length} files to processed/ folder as .xyz`);
+            app.landmarks.manager.clearDirty();
         } else {
             alert('Some files failed to save: ' + JSON.stringify(data.errors));
         }
@@ -547,6 +623,77 @@ async function saveAllLandmarks() {
         console.error('Error saving landmarks:', error);
         alert('Failed to save landmarks');
     }
+}
+
+// ====== Reference Viewer Panel ======
+
+function initReferencePanel() {
+    app.reference.viewer = new ReferenceViewer('ref-viewer-container');
+
+    // Set as Reference button
+    document.getElementById('set-reference-btn').addEventListener('click', () => {
+        setCurrentAsReference();
+    });
+
+    // Clear button
+    document.getElementById('ref-clear-btn').addEventListener('click', () => {
+        hideReferencePanel();
+    });
+}
+
+function showReferencePanel() {
+    app.reference.isVisible = true;
+    const panel = document.getElementById('reference-panel');
+    const layout = document.querySelector('.landmarks-layout');
+    panel.classList.remove('reference-hidden');
+    layout.classList.add('ref-visible');
+    // Trigger resize after animation so the viewer picks up its new size
+    setTimeout(() => {
+        if (app.reference.viewer && app.reference.viewer.isInitialized) {
+            app.reference.viewer.onResize();
+        }
+        // Also resize main viewer since it changed size
+        if (app.landmarks.viewer && app.landmarks.viewer.isInitialized) {
+            app.landmarks.viewer.onWindowResize();
+        }
+    }, 350);
+}
+
+function hideReferencePanel() {
+    app.reference.isVisible = false;
+    const panel = document.getElementById('reference-panel');
+    const layout = document.querySelector('.landmarks-layout');
+    panel.classList.add('reference-hidden');
+    layout.classList.remove('ref-visible');
+    app.reference.viewer.clear();
+    document.getElementById('ref-model-name').textContent = 'No reference set';
+    // Resize main viewer back to full width
+    setTimeout(() => {
+        if (app.landmarks.viewer && app.landmarks.viewer.isInitialized) {
+            app.landmarks.viewer.onWindowResize();
+        }
+    }, 350);
+}
+
+async function setCurrentAsReference() {
+    const files = app.landmarks.plyFiles;
+    if (!files || files.length === 0) return;
+
+    const filepath = files[app.landmarks.currentIndex];
+    if (!filepath) return;
+
+    // Get current landmarks from viewer
+    const landmarks = app.landmarks.viewer ? app.landmarks.viewer.getLandmarks() : [];
+
+    // Show panel
+    showReferencePanel();
+
+    // Update model name
+    const filename = filepath.split('/').pop().split('\\').pop();
+    document.getElementById('ref-model-name').textContent = filename;
+
+    // Load into reference viewer
+    await app.reference.viewer.loadReference(filepath, landmarks);
 }
 
 // ====== Analysis Tab ======

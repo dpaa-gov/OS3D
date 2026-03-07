@@ -253,7 +253,7 @@ class ThreeViewer {
         const color = this.getLandmarkColor(index);
         const colorHex = parseInt(color.replace('#', '0x'));
 
-        const geometry = new THREE.SphereGeometry(1, 16, 16);
+        const geometry = new THREE.SphereGeometry(1.5, 16, 16);
         const material = new THREE.MeshBasicMaterial({
             color: colorHex,
             transparent: true,
@@ -290,8 +290,8 @@ class ThreeViewer {
             depthWrite: false
         });
         const sprite = new THREE.Sprite(spriteMaterial);
-        sprite.position.set(x + 2.5, y + 2.5, z + 2.5);
-        sprite.scale.set(5, 5, 1);
+        sprite.position.set(x + 3.5, y + 3.5, z + 3.5);
+        sprite.scale.set(8, 8, 1);
         sprite.userData.landmarkLabel = true;
         sprite.userData.forLandmarkIndex = index;
 
@@ -415,8 +415,8 @@ class ThreeViewer {
                 depthWrite: false
             });
             const sprite = new THREE.Sprite(spriteMaterial);
-            sprite.position.set(sphere.position.x + 2.5, sphere.position.y + 2.5, sphere.position.z + 2.5);
-            sprite.scale.set(5, 5, 1);
+            sprite.position.set(sphere.position.x + 3.5, sphere.position.y + 3.5, sphere.position.z + 3.5);
+            sprite.scale.set(8, 8, 1);
             sprite.userData.landmarkLabel = true;
             sprite.userData.forLandmarkIndex = newIndex;
 
