@@ -481,6 +481,31 @@ body {
     font-weight: 600;
 }
 
+.counter-input {
+    width: 3.5rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--accent-primary);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-align: center;
+    padding: 0.1rem 0.2rem;
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.counter-input::-webkit-outer-spin-button,
+.counter-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.counter-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
 .nav-buttons {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -489,7 +514,7 @@ body {
 
 /* ====== Landmark List ====== */
 .landmark-list {
-    max-height: 800px;
+    max-height: 600px;
     overflow-y: auto;
     background: var(--bg-primary);
     border-radius: var(--radius-sm);

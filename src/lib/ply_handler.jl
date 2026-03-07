@@ -105,15 +105,27 @@ function read_ply_binary(filepath::String)
                 end
                 
                 if is_binary
+                    # Determine actual types for x, y, z from header
+                    xyz_types = [prop["type"] for prop in props[1:min(3, length(props))]]
+                    
                     for _ in 1:elem_count
-                        # Read x, y, z (first 3 floats)
-                        x = ltoh(read(io, Float32))
-                        y = ltoh(read(io, Float32))
-                        z = ltoh(read(io, Float32))
-                        push!(vertices, [Float64(x), Float64(y), Float64(z)])
+                        # Read x, y, z using correct types from header
+                        xyz = Float64[]
+                        xyz_bytes = 0
+                        for i in 1:3
+                            t = i <= length(xyz_types) ? xyz_types[i] : "float"
+                            if t in ["double", "float64"]
+                                push!(xyz, ltoh(read(io, Float64)))
+                                xyz_bytes += 8
+                            else
+                                push!(xyz, Float64(ltoh(read(io, Float32))))
+                                xyz_bytes += 4
+                            end
+                        end
+                        push!(vertices, xyz)
                         
                         # Skip remaining bytes
-                        remaining = bytes_per_vertex - 12
+                        remaining = bytes_per_vertex - xyz_bytes
                         if remaining > 0
                             skip(io, remaining)
                         end

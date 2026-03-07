@@ -201,6 +201,32 @@ function initLandmarksTab() {
         navigateModel(1);
     });
 
+    // Model counter input — jump to model number
+    const counterInput = document.getElementById('model-counter-input');
+    const jumpToModel = () => {
+        const targetNum = parseInt(counterInput.value);
+        if (isNaN(targetNum) || app.landmarks.isLoading) return;
+        const targetIndex = Math.max(0, Math.min(targetNum - 1, app.landmarks.plyFiles.length - 1));
+        if (targetIndex !== app.landmarks.currentIndex) {
+            if (app.landmarks.viewer) {
+                const currentLandmarks = app.landmarks.viewer.getLandmarks();
+                app.landmarks.manager.updateFromViewer(currentLandmarks);
+            }
+            app.landmarks.currentIndex = targetIndex;
+            loadCurrentModel();
+        } else {
+            counterInput.value = targetIndex + 1;
+        }
+    };
+    counterInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            jumpToModel();
+            counterInput.blur();
+        }
+    });
+    counterInput.addEventListener('blur', jumpToModel);
+
     // Reset landmarks button
     document.getElementById('reset-landmarks-btn').addEventListener('click', () => {
         resetCurrentLandmarks();
@@ -364,7 +390,9 @@ function updateModelInfo() {
 
     const filename = files[index] ? files[index].split(/[/\\]/).pop() : 'No model loaded';
     document.getElementById('current-model-name').textContent = filename;
-    document.getElementById('model-counter').textContent = `${index + 1} / ${files.length}`;
+    document.getElementById('model-counter-input').value = index + 1;
+    document.getElementById('model-counter-input').max = files.length;
+    document.getElementById('model-total').textContent = files.length;
 }
 
 function updateNavigationButtons() {
@@ -376,6 +404,7 @@ function updateNavigationButtons() {
     document.getElementById('reset-landmarks-btn').disabled = total === 0;
     document.getElementById('detect-holes-btn').disabled = total === 0;
     document.getElementById('set-reference-btn').disabled = total === 0;
+    document.getElementById('model-counter-input').disabled = total === 0;
 }
 
 function updateLandmarkList() {
@@ -528,7 +557,6 @@ async function detectHoles() {
             app.landmarks.manager.setBoundaryIndices(data.boundaryIndices);
             console.log(`Found ${data.count} boundary vertices`);
         } else {
-            alert('No holes detected in this mesh (mesh is closed)');
             app.landmarks.viewer.clearBoundaryHighlights();
             app.landmarks.manager.setBoundaryIndices([]);
         }
@@ -563,7 +591,9 @@ function clearLandmarkDirectory() {
     document.getElementById('detect-holes-btn').disabled = true;
     document.getElementById('set-reference-btn').disabled = true;
     document.getElementById('current-model-name').textContent = 'No model loaded';
-    document.getElementById('model-counter').textContent = '0 / 0';
+    document.getElementById('model-counter-input').value = 0;
+    document.getElementById('model-counter-input').disabled = true;
+    document.getElementById('model-total').textContent = '0';
     document.getElementById('landmark-list').innerHTML = '<p class="placeholder-text">Click on the model to place landmarks</p>';
 
     // Restore placeholder
