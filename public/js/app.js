@@ -312,13 +312,16 @@ function updateLandmarkList() {
         return;
     }
 
-    list.innerHTML = landmarks.map(lm => `
+    list.innerHTML = landmarks.map(lm => {
+        const color = app.landmarks.viewer ? app.landmarks.viewer.getLandmarkColor(lm.index) : '#2563eb';
+        return `
         <div class="landmark-item" data-landmark-index="${lm.index}">
-            <span class="index editable-index" title="Click to renumber">${lm.index}</span>
+            <span class="landmark-color-dot" style="background:${color}"></span>
+            <span class="index editable-index" title="Click to renumber" style="color:${color}">${lm.index}</span>
             <span class="coords">(${lm.x.toFixed(2)}, ${lm.y.toFixed(2)}, ${lm.z.toFixed(2)})</span>
             <button class="landmark-delete-btn" title="Remove landmark">✕</button>
         </div>
-    `).join('');
+    `}).join('');
 
     // Attach click handlers for editable index badges
     list.querySelectorAll('.editable-index').forEach(badge => {

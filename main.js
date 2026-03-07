@@ -167,12 +167,16 @@ function createWindow() {
         height: 900,
         title: 'OS3D - Osteometric Sorting 3D',
         autoHideMenuBar: true,
+        show: false,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
             nodeIntegration: false,
         },
     });
+
+    win.maximize();
+    win.show();
 
     win.setMenu(null);
 

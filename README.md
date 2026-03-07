@@ -180,6 +180,18 @@ If 3+ matching landmarks are present in both meshes, a rigid alignment is comput
 - **Recommended**: 5–6 landmarks per bone end for robust alignment
 - **Placement**: Landmarks should be spread across the bone surface, not clustered together
 
+### Point Cloud Density
+
+Compared specimens may have different vertex densities (e.g., 5K vs 15K points). This is common when data comes from different scanners, scan resolutions, or mesh decimation levels. The method is robust to density differences for two key reasons:
+
+1. **ICP nearest-neighbor is asymmetric**: Going A→B, every point on A finds its closest point on B. If B is denser, matches are accurate. Reversing (B→A), dense B searches sparse A, producing systematically larger distances. This creates a directional bias that depends on which bone is denser, not on whether they actually match.
+
+2. **Bidirectional Hausdorff corrects the bias**: By computing distances in both directions and combining them, the density-dependent asymmetry cancels out. A true pair scores well in both directions regardless of density mismatch; a non-pair scores poorly in at least one direction.
+
+**Practical recommendation**: ~5K–10K vertices is sufficient for long bone comparison. Below ~2K, surface detail is lost. Above ~20K, computation increases with diminishing accuracy gains. Consistent density across a dataset is ideal but not required.
+
+**Cross-modality justification**: This density robustness enables combining data from different acquisition sources (e.g., 3D surface scanners and CT-derived meshes) in the same analysis. These modalities produce meshes with fundamentally different vertex densities, noise profiles, and surface characteristics (smooth scans vs. CT staircase artifacts). The bidirectional metric and percentile trimming handle both, making the method viable for real-world collections where equipment varies.
+
 ## File Formats
 
 ### PLY Input
@@ -239,6 +251,8 @@ OS3D/
 
 - [ ] Validate percentile ICP with known fragment-to-complete test cases
 - [ ] Check vertex counts in Artec real-time fusion models and evaluate mesh reduction
+- [x] Switch 3D viewer from OrbitControls to TrackballControls for free rotation (no pole locking)
+- [ ] Add auto-extreme landmark placement: view-dependent L1/L2 at farthest-apart points, L3 at centroid (nearest surface point to geometric center)
 - [ ] ICP: Skip KD-tree rebuild in later iterations when `‖dH - I‖ < ε`
 - [ ] ICP: Pre-allocate vertex matrix in XYZ parser instead of `Vector{Vector}` conversion
 - [ ] Benchmark thread scaling on bigbox (64 cores/128 threads)

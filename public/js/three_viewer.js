@@ -45,14 +45,19 @@ class ThreeViewer {
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.container.appendChild(this.renderer.domElement);
 
-        // Controls
-        this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
-        this.controls.enableDamping = true;
-        this.controls.dampingFactor = 0.05;
+        // Controls — TrackballControls for free rotation (no pole locking)
+        this.controls = new THREE.TrackballControls(this.camera, this.renderer.domElement);
+        this.controls.rotateSpeed = 1.2;
+        this.controls.zoomSpeed = 1.2;
+        this.controls.panSpeed = 0.3;
+        this.controls.noRotate = false;
+        // TrackballControls: LEFT→ROTATE, MIDDLE→ZOOM, RIGHT→PAN
+        // We want: right-click=rotate, middle=zoom, left=landmarks (disabled)
+        // So: button 2 (right) triggers ROTATE, button 1 triggers ZOOM, PAN disabled
         this.controls.mouseButtons = {
-            LEFT: null, // Reserved for landmark placement
-            MIDDLE: THREE.MOUSE.DOLLY,
-            RIGHT: THREE.MOUSE.ROTATE
+            LEFT: 2,     // right-click triggers ROTATE
+            MIDDLE: 1,   // middle-click triggers ZOOM
+            RIGHT: -1    // PAN disabled
         };
 
         // Lighting — two opposing directions for depth without washing out
@@ -93,6 +98,7 @@ class ThreeViewer {
         this.camera.aspect = width / height;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(width, height);
+        this.controls.handleResize();
         this.controls.update();
     }
 
@@ -216,10 +222,40 @@ class ThreeViewer {
         }
     }
 
+    // Distinct color per landmark index — consistent across all models
+    getLandmarkColor(index) {
+        const palette = [
+            '#7c3aed', // L1  — purple
+            '#dc2626', // L2  — red
+            '#0d9488', // L3  — teal
+            '#ea580c', // L4  — orange
+            '#db2777', // L5  — pink
+            '#ca8a04', // L6  — amber
+            '#2563eb', // L7  — blue
+            '#16a34a', // L8  — green
+            '#6366f1', // L9  — indigo
+            '#0891b2', // L10 — cyan
+            '#9333ea', // L11 — violet
+            '#e11d48', // L12 — rose
+            '#059669', // L13 — emerald
+            '#d97706', // L14 — yellow-orange
+            '#4f46e5', // L15 — deep indigo
+            '#0284c7', // L16 — sky blue
+            '#be185d', // L17 — magenta
+            '#65a30d', // L18 — lime
+            '#7c2d12', // L19 — brown
+            '#475569', // L20 — slate
+        ];
+        return palette[(index - 1) % palette.length];
+    }
+
     addLandmarkSphere(x, y, z, index) {
+        const color = this.getLandmarkColor(index);
+        const colorHex = parseInt(color.replace('#', '0x'));
+
         const geometry = new THREE.SphereGeometry(1, 16, 16);
         const material = new THREE.MeshBasicMaterial({
-            color: 0x2563eb,
+            color: colorHex,
             transparent: true,
             opacity: 0.9
         });
@@ -236,7 +272,7 @@ class ThreeViewer {
         canvas.width = 64;
         canvas.height = 64;
 
-        context.fillStyle = '#2563eb';
+        context.fillStyle = color;
         context.beginPath();
         context.arc(32, 32, 30, 0, 2 * Math.PI);
         context.fill();
@@ -348,16 +384,20 @@ class ThreeViewer {
         }
         this.landmarkSpheres = this.landmarkSpheres.filter(obj => obj.userData.forLandmarkIndex !== oldIndex);
 
-        // Find the sphere to get position
+        // Find the sphere to get position and update its color
         const sphere = this.landmarkSpheres.find(obj => obj.userData.landmarkIndex === newIndex);
         if (sphere) {
+            // Update sphere color
+            const color = this.getLandmarkColor(newIndex);
+            sphere.material.color.set(parseInt(color.replace('#', '0x')));
+
             // Create new label sprite
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
             canvas.width = 64;
             canvas.height = 64;
 
-            context.fillStyle = '#2563eb';
+            context.fillStyle = color;
             context.beginPath();
             context.arc(32, 32, 30, 0, 2 * Math.PI);
             context.fill();
