@@ -270,10 +270,20 @@ async function loadLandmarkDirectory(directory) {
     app.landmarks.directory = directory;
     document.getElementById('landmark-path').value = directory;
 
+    // Show loading modal
+    document.getElementById('loading-title').textContent = 'Loading Models';
+    document.getElementById('loading-status').textContent = 'Scanning directory...';
+    document.getElementById('elapsed-timer').textContent = '00:00';
+    document.getElementById('loading-modal').classList.add('active');
+    app.analysis.startTime = Date.now();
+    startTimer();
+
     try {
         const data = await window.os3d.invoke('list_ply_files', { directory });
 
         if (data.error) {
+            stopTimer();
+            hideLoadingModal();
             alert('Error: ' + data.error);
             return;
         }
@@ -286,6 +296,8 @@ async function loadLandmarkDirectory(directory) {
         document.getElementById('global-save-btn').disabled = false;
 
         if (data.files.length > 0) {
+            document.getElementById('loading-status').textContent = `Found ${data.files.length} models`;
+
             // Initialize viewer if needed
             if (!app.landmarks.viewer) {
                 app.landmarks.viewer = new ThreeViewer('viewer-container');
@@ -302,6 +314,45 @@ async function loadLandmarkDirectory(directory) {
                 };
             }
 
+            // Import previously saved landmarks from processed/ folder
+            document.getElementById('loading-status').textContent = 'Checking for saved landmarks...';
+            try {
+                const imported = await window.os3d.invoke('import_processed', { directory });
+                if (imported.count > 0) {
+                    document.getElementById('loading-status').textContent =
+                        `Importing ${imported.count} saved files...`;
+
+                    const processedPaths = new Set();
+                    for (const file of imported.files) {
+                        app.landmarks.manager.setCurrentFile(file.plyPath);
+                        if (file.landmarks && file.landmarks.length > 0) {
+                            app.landmarks.manager.setLandmarks(file.plyPath, file.landmarks);
+                        }
+                        if (file.boundaryIndices && file.boundaryIndices.length > 0) {
+                            app.landmarks.manager.setBoundaryIndices(file.boundaryIndices);
+                        }
+                        processedPaths.add(file.plyPath);
+                    }
+
+                    // Find first unprocessed model, or start at 0 if all done
+                    let firstUnprocessed = 0;
+                    for (let i = 0; i < data.files.length; i++) {
+                        if (!processedPaths.has(data.files[i])) {
+                            firstUnprocessed = i;
+                            break;
+                        }
+                    }
+                    app.landmarks.currentIndex = firstUnprocessed;
+
+                    document.getElementById('loading-status').textContent =
+                        `Imported ${imported.count} saved files, loading model ${firstUnprocessed + 1}...`;
+                }
+            } catch (err) {
+                console.warn('Could not import processed landmarks:', err);
+            }
+
+            // Set current file for manager before loading
+            app.landmarks.manager.setCurrentFile(data.files[app.landmarks.currentIndex]);
             loadCurrentModel();
         } else {
             alert('No PLY files found in this directory');
@@ -310,8 +361,14 @@ async function loadLandmarkDirectory(directory) {
     } catch (error) {
         console.error('Error loading directory:', error);
         alert('Failed to load directory');
+    } finally {
+        stopTimer();
+        hideLoadingModal();
     }
 }
+
+
+
 
 async function loadCurrentModel() {
     const files = app.landmarks.plyFiles;
@@ -571,6 +628,11 @@ async function detectHoles() {
 }
 
 function clearLandmarkDirectory() {
+    // Hide reference panel if open
+    if (app.reference.isVisible) {
+        hideReferencePanel();
+    }
+
     if (app.landmarks.viewer) {
         app.landmarks.viewer.dispose();
         app.landmarks.viewer = null;
@@ -842,7 +904,10 @@ async function runComparison() {
     // Show loading modal
     app.analysis.isRunning = true;
     app.analysis.startTime = Date.now();
-    showLoadingModal();
+    document.getElementById('loading-title').textContent = 'Running Comparisons';
+    document.getElementById('loading-status').textContent = 'Processing comparisons...';
+    document.getElementById('elapsed-timer').textContent = '00:00';
+    document.getElementById('loading-modal').classList.add('active');
     startTimer();
 
     try {
@@ -888,13 +953,7 @@ async function runComparison() {
 }
 
 
-function showLoadingModal() {
-    // Reset text BEFORE making modal visible to prevent stale time flash
-    document.getElementById('loading-title').textContent = 'Running Comparisons';
-    document.getElementById('loading-status').textContent = 'Processing comparisons...';
-    document.getElementById('elapsed-timer').textContent = '00:00';
-    document.getElementById('loading-modal').classList.add('active');
-}
+
 
 function hideLoadingModal() {
     document.getElementById('loading-modal').classList.remove('active');

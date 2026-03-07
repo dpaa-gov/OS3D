@@ -53,26 +53,6 @@ function handle_command(cmd::Dict)
                 "count" => length(boundary_indices)
             )
 
-        elseif command == "save_landmarks"
-            filepath = get(cmd, "filepath", "")
-            landmarks = get(cmd, "landmarks", [])
-            save_to_processed = get(cmd, "saveToProcessed", false)
-            source_directory = get(cmd, "sourceDirectory", "")
-
-            if !isfile(filepath)
-                return Dict("error" => "File not found")
-            end
-
-            original_data = read_ply_binary(filepath)
-
-            if save_to_processed && !isempty(source_directory)
-                output_path = copy_to_processed(source_directory, basename(filepath), original_data, landmarks)
-            else
-                output_path = write_xyz_with_landmarks(filepath, original_data, landmarks)
-            end
-
-            return Dict("success" => true, "path" => output_path)
-
         elseif command == "save_all_landmarks"
             files_data = get(cmd, "files", [])
             source_directory = get(cmd, "sourceDirectory", "")
@@ -110,6 +90,13 @@ function handle_command(cmd::Dict)
                 "saved" => saved,
                 "errors" => errors
             )
+
+        elseif command == "import_processed"
+            directory = get(cmd, "directory", "")
+            if !isdir(directory)
+                return Dict("error" => "Invalid directory")
+            end
+            return import_processed_landmarks(directory)
 
         elseif command == "analysis_files"
             directory = get(cmd, "directory", "")

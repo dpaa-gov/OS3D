@@ -333,6 +333,8 @@ class ThreeViewer {
 
     resetLandmarks() {
         this.clearLandmarkSpheres();
+        this.landmarkCount = 0;
+        this.nextLandmarkNumber = 1;
     }
 
     /**
@@ -503,6 +505,9 @@ class ThreeViewer {
 
 
     dispose() {
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+        }
         if (this.renderer) {
             this.renderer.dispose();
         }

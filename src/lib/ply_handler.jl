@@ -3,7 +3,7 @@
 
 module PLYHandler
 
-export read_ply_binary, write_xyz_with_landmarks, copy_to_processed, get_ply_files, create_processed_dir
+export read_ply_binary, write_xyz_with_landmarks, copy_to_processed, get_ply_files, create_processed_dir, import_processed_landmarks
 
 
 
@@ -270,6 +270,82 @@ function get_ply_files(directory::String)
     files = readdir(directory, join=true)
     ply_files = filter(f -> isfile(f) && lowercase(splitext(f)[2]) == ".ply", files)
     return sort(ply_files)
+end
+
+"""
+    import_processed_landmarks(directory::String) -> Dict
+
+Scan the 'processed/' subfolder for .xyz files and parse out
+landmarks (L markers) and boundary vertex indices (B markers).
+Returns a Dict mapping PLY filenames to their landmarks and boundaries.
+"""
+function import_processed_landmarks(directory::String)
+    processed_dir = joinpath(directory, "processed")
+    if !isdir(processed_dir)
+        return Dict("files" => [], "count" => 0)
+    end
+
+    xyz_files = filter(f -> lowercase(splitext(f)[2]) == ".xyz", readdir(processed_dir))
+    
+    results = []
+    
+    for xyz_file in xyz_files
+        xyz_path = joinpath(processed_dir, xyz_file)
+        landmarks = []
+        boundary_indices = Int[]
+        vertex_index = 0
+        
+        try
+            for line in eachline(xyz_path)
+                parts = split(strip(line))
+                length(parts) < 3 && continue
+                
+                # Check for landmark marker (last part starts with L)
+                last_part = parts[end]
+                if startswith(last_part, "L") && length(last_part) > 1
+                    lm_num_str = last_part[2:end]
+                    lm_num = tryparse(Int, lm_num_str)
+                    if lm_num !== nothing
+                        x = parse(Float64, parts[1])
+                        y = parse(Float64, parts[2])
+                        z = parse(Float64, parts[3])
+                        push!(landmarks, Dict(
+                            "x" => x,
+                            "y" => y, 
+                            "z" => z,
+                            "index" => lm_num
+                        ))
+                    end
+                    continue
+                end
+                
+                # Check for boundary marker
+                if last_part == "B"
+                    push!(boundary_indices, vertex_index)
+                end
+                
+                vertex_index += 1
+            end
+        catch e
+            @warn "Failed to parse $xyz_file: $e"
+            continue
+        end
+        
+        # Map back to PLY filename
+        ply_filename = replace(xyz_file, r"\.xyz$"i => ".ply")
+        # Find the full PLY path
+        ply_path = joinpath(directory, ply_filename)
+        
+        if isfile(ply_path) && (!isempty(landmarks) || !isempty(boundary_indices))
+            push!(results, Dict(
+                "plyPath" => ply_path,
+                "landmarks" => landmarks,
+                "boundaryIndices" => boundary_indices
+            ))
+        end
+    end
+    
+    return Dict("files" => results, "count" => length(results))
 end
 
 end # module

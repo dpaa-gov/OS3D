@@ -139,12 +139,12 @@ ipcMain.handle('detect_holes', async (_event, { path: filepath }) => {
     return sendToSidecar({ command: 'detect_holes', path: filepath });
 });
 
-ipcMain.handle('save_landmarks', async (_event, args) => {
-    return sendToSidecar({ command: 'save_landmarks', ...args });
-});
-
 ipcMain.handle('save_all_landmarks', async (_event, args) => {
     return sendToSidecar({ command: 'save_all_landmarks', ...args });
+});
+
+ipcMain.handle('import_processed', async (_event, { directory }) => {
+    return sendToSidecar({ command: 'import_processed', directory });
 });
 
 ipcMain.handle('get_analysis_files', async (_event, { directory }) => {
