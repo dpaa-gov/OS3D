@@ -16,6 +16,7 @@ class ThreeViewer {
         this.landmarkSpheres = [];
         this.landmarkCount = 0;
         this.nextLandmarkNumber = 1;
+        this.isLoading = false;
         this.onLandmarkPlaced = null;
         this.isInitialized = false;
         // Boundary visualization
@@ -108,11 +109,15 @@ class ThreeViewer {
      * @param {Array} existingLandmarks - Optional existing landmarks to restore
      */
     async loadModelFromPath(filepath, existingLandmarks = []) {
-        // Remove existing model
+        this.isLoading = true;
+
+        // Remove existing model and null the reference immediately
+        // so no phantom clicks can interact with disposed geometry during async loading
         if (this.model) {
             this.scene.remove(this.model);
             this.model.geometry.dispose();
             this.model.material.dispose();
+            this.model = null;
         }
 
         // Clear landmarks and boundary highlights
@@ -154,9 +159,11 @@ class ThreeViewer {
                 }
             }
 
+            this.isLoading = false;
             return true;
         } catch (error) {
             console.error('Error loading mesh:', error);
+            this.isLoading = false;
             return false;
         }
     }
@@ -184,7 +191,7 @@ class ThreeViewer {
     }
 
     onMouseClick(event) {
-        if (!this.model || event.button !== 0) return; // Only left click
+        if (!this.model || this.isLoading || event.button !== 0) return; // Only left click, not during loading
 
         // Calculate mouse position in normalized device coordinates
         const rect = this.container.getBoundingClientRect();
