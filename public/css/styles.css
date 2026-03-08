@@ -182,16 +182,26 @@ body {
 
 .panel-section {
     margin-bottom: 1.25rem;
+    flex-shrink: 0;
 }
 
 .panel-section:last-child {
     margin-bottom: 0;
 }
 
+/* The landmarks section (containing .landmark-list) fills remaining vertical space */
+.panel-section:has(.landmark-list) {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
 /* ====== Landmarks Layout ====== */
 .landmarks-layout {
     display: grid;
-    grid-template-columns: 320px 1fr;
+    grid-template-columns: 360px 1fr;
     gap: 1.5rem;
     padding: 1.5rem;
     height: 100%;
@@ -199,7 +209,7 @@ body {
 }
 
 .landmarks-layout.ref-visible {
-    grid-template-columns: 320px 1fr 280px;
+    grid-template-columns: 360px 1fr 280px;
 }
 
 .reference-panel:not(.ref-visible .reference-panel) {
@@ -207,7 +217,9 @@ body {
 }
 
 .left-panel {
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .viewer-panel {
@@ -514,7 +526,8 @@ body {
 
 /* ====== Landmark List ====== */
 .landmark-list {
-    max-height: 400px;
+    flex: 1;
+    min-height: 80px;
     overflow-y: auto;
     background: var(--bg-primary);
     border-radius: var(--radius-sm);
