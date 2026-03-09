@@ -159,11 +159,14 @@ class ThreeViewer {
                 }
             }
 
-            this.isLoading = false;
+
+            // NOTE: Do NOT set isLoading = false here.
+            // The caller (loadCurrentModel) must finish syncing
+            // nextLandmarkNumber before unblocking clicks.
             return true;
         } catch (error) {
             console.error('Error loading mesh:', error);
-            this.isLoading = false;
+            this.isLoading = false;  // On error, unblock since caller won't
             return false;
         }
     }

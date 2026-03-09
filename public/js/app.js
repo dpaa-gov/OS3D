@@ -418,6 +418,11 @@ async function loadCurrentModel() {
         if (storedBoundaries.length > 0) {
             app.landmarks.viewer.highlightBoundaryVertices(storedBoundaries);
         }
+
+        // NOW unblock clicks — all post-load state (nextLandmarkNumber etc.)
+        // is synced. Before this point, loadModelFromPath intentionally
+        // keeps isLoading=true to prevent phantom landmark placement.
+        app.landmarks.viewer.isLoading = false;
     } finally {
         app.landmarks.isLoading = false;
     }
