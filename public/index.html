@@ -12,25 +12,23 @@
 
 <body>
     <div class="app-container">
-        <!-- Header -->
+        <!-- Header with integrated tabs -->
         <header class="header">
             <div class="logo">
                 <h1>OS<span class="accent">3D</span></h1>
             </div>
+            <nav class="tab-nav">
+                <button class="tab-btn active" data-tab="landmarks">
+                    <span class="tab-icon">&#9873;</span>
+                    Process
+                </button>
+                <button class="tab-btn" data-tab="analysis">
+                    <span class="tab-icon">&#9776;</span>
+                    Analysis
+                </button>
+            </nav>
             <span class="version-badge">v1.0.0</span>
         </header>
-
-        <!-- Tab Navigation -->
-        <nav class="tab-nav">
-            <button class="tab-btn active" data-tab="landmarks">
-                <span class="tab-icon">&#9873;</span>
-                Process
-            </button>
-            <button class="tab-btn" data-tab="analysis">
-                <span class="tab-icon">&#9776;</span>
-                Analysis
-            </button>
-        </nav>
 
         <!-- Main Content -->
         <main class="main-content">

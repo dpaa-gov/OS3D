@@ -94,15 +94,6 @@ npm run build
 | **Linux** | `dist/OS3D-1.0.0.AppImage` |
 | **Windows** | `dist/OS3D Setup 1.0.0.exe` |
 
-### Windows Installer
-
-On a Windows machine with Julia and Node.js installed:
-
-```cmd
-julia build\build_sysimage.jl
-npm run build
-```
-
 ---
 
 ## Data Preparation (Artec Studio)
