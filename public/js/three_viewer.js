@@ -75,8 +75,9 @@ class ThreeViewer {
 
         // Grid removed for cleaner visualization
 
-        // Event listeners
-        this.container.addEventListener('click', (e) => this.onMouseClick(e));
+        // Event listeners — store reference so dispose() can remove them
+        this._clickHandler = (e) => this.onMouseClick(e);
+        this.container.addEventListener('click', this._clickHandler);
 
         // Use ResizeObserver for proper container resize detection
         this.resizeObserver = new ResizeObserver(() => this.onWindowResize());
@@ -517,6 +518,11 @@ class ThreeViewer {
     dispose() {
         if (this.resizeObserver) {
             this.resizeObserver.disconnect();
+        }
+        // Remove click handler to prevent ghost handlers after clear+reload
+        if (this._clickHandler) {
+            this.container.removeEventListener('click', this._clickHandler);
+            this._clickHandler = null;
         }
         if (this.renderer) {
             this.renderer.dispose();

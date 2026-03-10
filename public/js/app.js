@@ -663,6 +663,11 @@ function clearLandmarkDirectory() {
     document.getElementById('model-total').textContent = '0';
     document.getElementById('landmark-list').innerHTML = '<p class="placeholder-text">Click on the model to place landmarks</p>';
 
+    // Reset next landmark number input
+    const nextNumInput = document.getElementById('next-landmark-num');
+    nextNumInput.value = 1;
+    nextNumInput.classList.remove('input-warning');
+
     // Restore placeholder
     const container = document.getElementById('viewer-container');
     container.innerHTML = `
