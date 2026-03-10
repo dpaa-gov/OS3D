@@ -191,6 +191,16 @@ class ThreeViewer {
         this.camera.position.copy(center);
         this.camera.position.z += cameraDistance;
         this.camera.lookAt(center);
+
+        // Adapt control sensitivity to model size so small and large bones
+        // feel consistent. 120 is the "baseline" radius for default speeds.
+        const radius = this.model.geometry.boundingSphere
+            ? this.model.geometry.boundingSphere.radius
+            : maxDim / 2;
+        const speedFactor = Math.max(0.5, Math.min(2.5, 120 / radius));
+        this.controls.rotateSpeed = 1.2 * speedFactor;
+        this.controls.zoomSpeed = 1.2 * speedFactor;
+
         this.controls.update();
     }
 

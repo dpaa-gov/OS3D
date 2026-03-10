@@ -36,8 +36,8 @@ class ReferenceViewer {
 
         // TrackballControls — right-click to rotate, scroll to zoom, no landmark placement
         this.controls = new THREE.TrackballControls(this.camera, this.renderer.domElement);
-        this.controls.rotateSpeed = 1.2;
-        this.controls.zoomSpeed = 1.2;
+        this.controls.rotateSpeed = 0.8;
+        this.controls.zoomSpeed = 0.8;
         this.controls.panSpeed = 0.3;
         this.controls.noRotate = false;
         this.controls.mouseButtons = {
@@ -153,6 +153,15 @@ class ReferenceViewer {
         this.camera.position.copy(center);
         this.camera.position.z += cameraDistance;
         this.camera.lookAt(center);
+
+        // Adapt control sensitivity to model size
+        const radius = this.model.geometry.boundingSphere
+            ? this.model.geometry.boundingSphere.radius
+            : maxDim / 2;
+        const speedFactor = Math.max(0.5, Math.min(2.5, 120 / radius));
+        this.controls.rotateSpeed = 0.8 * speedFactor;
+        this.controls.zoomSpeed = 0.8 * speedFactor;
+
         this.controls.update();
     }
 
