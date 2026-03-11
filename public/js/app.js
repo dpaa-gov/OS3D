@@ -105,13 +105,7 @@ function initKeyboardShortcuts() {
             return;
         }
 
-        // D — Detect Holes
-        if (key === 'd' || key === 'D') {
-            e.preventDefault();
-            const btn = document.getElementById('detect-holes-btn');
-            if (!btn.disabled) btn.click();
-            return;
-        }
+
 
         // Backspace — Reset Landmarks
         if (key === 'Backspace') {
@@ -237,10 +231,7 @@ function initLandmarksTab() {
         saveAllLandmarks();
     });
 
-    // Detect holes button
-    document.getElementById('detect-holes-btn').addEventListener('click', () => {
-        detectHoles();
-    });
+
 
     // Next landmark number input
     const nextNumInput = document.getElementById('next-landmark-num');
@@ -413,10 +404,13 @@ async function loadCurrentModel() {
         nextNumInput.value = nextNum;
         nextNumInput.classList.remove('input-warning');
 
-        // Re-apply boundary highlights if previously detected
+        // Re-apply boundary highlights if previously detected, otherwise auto-detect
         const storedBoundaries = app.landmarks.manager.getCurrentBoundaries();
         if (storedBoundaries.length > 0) {
             app.landmarks.viewer.highlightBoundaryVertices(storedBoundaries);
+        } else {
+            // Auto-detect boundaries silently (no loading modal)
+            autoDetectHoles(filepath);
         }
 
         // NOW unblock clicks — all post-load state (nextLandmarkNumber etc.)
@@ -464,7 +458,7 @@ function updateNavigationButtons() {
     document.getElementById('prev-model-btn').disabled = index === 0;
     document.getElementById('next-model-btn').disabled = index >= total - 1;
     document.getElementById('reset-landmarks-btn').disabled = total === 0;
-    document.getElementById('detect-holes-btn').disabled = total === 0;
+
     document.getElementById('set-reference-btn').disabled = total === 0;
     document.getElementById('model-counter-input').disabled = total === 0;
 }
@@ -582,53 +576,34 @@ function resetCurrentLandmarks() {
     nextNumInput.classList.remove('input-warning');
 }
 
-async function detectHoles() {
+
+
+// Silent auto-detect: no loading modal, no error alerts.
+// Called automatically on model load when no boundaries are stored.
+async function autoDetectHoles(filepath) {
     if (!app.landmarks.viewer) return;
-
-    const files = app.landmarks.plyFiles;
-    if (files.length === 0) return;
-
-    const filepath = files[app.landmarks.currentIndex];
-
-    // Show loading modal — set text before making visible
-    document.getElementById('loading-title').textContent = 'Detecting Holes';
-    document.getElementById('loading-status').textContent = 'Analyzing mesh boundaries...';
-    document.getElementById('elapsed-timer').textContent = '00:00';
-    document.getElementById('loading-modal').classList.add('active');
-
-    // Start timer
-    app.analysis.startTime = Date.now();
-    startTimer();
 
     try {
         const data = await window.os3d.invoke('detect_holes', { path: filepath });
 
-        // Hide loading modal
-        stopTimer();
-        hideLoadingModal();
+        // Verify the user hasn't navigated away while we were waiting
+        const currentFilepath = app.landmarks.plyFiles[app.landmarks.currentIndex];
+        if (currentFilepath !== filepath) return;
 
         if (data.error) {
-            alert('Error detecting holes: ' + data.error);
+            console.warn('Auto hole detection failed:', data.error);
             return;
         }
 
         if (data.boundaryIndices && data.boundaryIndices.length > 0) {
-            // Highlight vertices in viewer
             app.landmarks.viewer.highlightBoundaryVertices(data.boundaryIndices);
-            // Store in manager
             app.landmarks.manager.setBoundaryIndices(data.boundaryIndices);
-            console.log(`Found ${data.count} boundary vertices`);
+            console.log(`Auto-detected ${data.count} boundary vertices`);
         } else {
-            app.landmarks.viewer.clearBoundaryHighlights();
             app.landmarks.manager.setBoundaryIndices([]);
         }
-
     } catch (error) {
-        // Hide loading modal on error
-        stopTimer();
-        hideLoadingModal();
-        console.error('Error detecting holes:', error);
-        alert('Failed to detect holes');
+        console.warn('Auto hole detection error:', error);
     }
 }
 
@@ -655,7 +630,7 @@ function clearLandmarkDirectory() {
     document.getElementById('prev-model-btn').disabled = true;
     document.getElementById('next-model-btn').disabled = true;
     document.getElementById('reset-landmarks-btn').disabled = true;
-    document.getElementById('detect-holes-btn').disabled = true;
+
     document.getElementById('set-reference-btn').disabled = true;
     document.getElementById('current-model-name').textContent = 'No model loaded';
     document.getElementById('model-counter-input').value = 0;

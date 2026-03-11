@@ -130,9 +130,8 @@ Use these to verify the landmarking, boundary detection, and ICP comparison work
 ### Process Tab
 1. Click **Browse** to select a folder containing PLY files
 2. Navigate through models with **← Back** / **Next →**
-3. Click on the 3D model to place landmarks
-4. Click **Detect Holes** to mark boundary vertices
-5. Click **Save All** to export all files to XYZ format
+3. Click on the 3D model to place landmarks (boundary vertices are detected automatically)
+4. Click **Save All** to export all files to XYZ format
 
 ### Analysis Tab
 1. Click **Browse** to select a folder containing XYZ files
@@ -158,7 +157,7 @@ The comparison uses **percentile ICP** (point-to-plane) with automatic overlap e
 - **Percentile-based**: Uses the Nth percentile (default 95th) instead of true maximum for robustness to outliers
 
 ### Boundary Handling
-Boundary vertices (detected holes/fragment edges) are expanded by one ring of mesh neighbors for conservative margin detection. These are excluded from the distance calculation:
+Boundary vertices (holes and fragment edges) are **automatically detected** when each model is loaded. The detection uses edge-to-face adjacency analysis on the PLY mesh, and boundary regions are expanded by one ring of mesh neighbors for conservative margin detection. These are excluded from the distance calculation:
 - Boundary points are **excluded as measurement sources**
 - Correspondences **to boundary points are ignored**
 
@@ -242,24 +241,10 @@ OS3D/
 
 - [ ] Validate percentile ICP with known fragment-to-complete test cases
 - [ ] Check vertex counts in Artec real-time fusion models and evaluate mesh reduction
-- [x] Switch 3D viewer from OrbitControls to TrackballControls for free rotation (no pole locking)
 - [ ] Add auto-extreme landmark placement: view-dependent L1/L2 at farthest-apart points, L3 at centroid (nearest surface point to geometric center)
 - [ ] ICP: Skip KD-tree rebuild in later iterations when `‖dH - I‖ < ε`
 - [ ] ICP: Pre-allocate vertex matrix in XYZ parser instead of `Vector{Vector}` conversion
 - [ ] Benchmark thread scaling on bigbox (64 cores/128 threads)
-
-<details>
-<summary>Completed</summary>
-
-- [x] Migrate from Genie web server to Tauri desktop app
-- [x] Migrate from Tauri to Electron
-- [x] ICP: Pre-allocate buffers for SVD/covariance/normals — **7 min → 6:15**
-- [x] ICP: Batch boundary filtering with `Set` — **single-pass filtering, ~2s gain**
-- [x] ICP: Reuse fixed PointCloud across pairs — **9 min → 7 min (22% faster)**
-- [x] ICP: Removed per-pair `@info` logging
-- [x] CSV Export: Save location prompt via Tauri native dialog
-
-</details>
 
 ## Citation
 
