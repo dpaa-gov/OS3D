@@ -40,6 +40,7 @@ class ReferenceViewer {
         this.controls.zoomSpeed = 0.8;
         this.controls.panSpeed = 0.3;
         this.controls.noRotate = false;
+        this.controls.staticMoving = true;
         this.controls.mouseButtons = {
             LEFT: 2,     // right-click triggers ROTATE
             MIDDLE: 1,   // middle-click triggers ZOOM

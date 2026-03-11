@@ -52,6 +52,7 @@ class ThreeViewer {
         this.controls.zoomSpeed = 1.2;
         this.controls.panSpeed = 0.3;
         this.controls.noRotate = false;
+        this.controls.staticMoving = true;
         // TrackballControls: LEFT→ROTATE, MIDDLE→ZOOM, RIGHT→PAN
         // We want: right-click=rotate, middle=zoom, left=landmarks (disabled)
         // So: button 2 (right) triggers ROTATE, button 1 triggers ZOOM, PAN disabled
