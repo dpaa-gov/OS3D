@@ -255,6 +255,21 @@ function initLandmarksTab() {
             nextNumInput.classList.remove('input-warning');
         }
     });
+
+    // Sensitivity slider
+    const sensitivitySlider = document.getElementById('sensitivity-slider');
+    const sensitivityValue = document.getElementById('sensitivity-value');
+    sensitivitySlider.addEventListener('input', () => {
+        const val = parseFloat(sensitivitySlider.value);
+        sensitivityValue.textContent = val.toFixed(1);
+        if (app.landmarks.viewer) {
+            app.landmarks.viewer.setSensitivity(val);
+        }
+    });
+    // Release focus after dragging so arrow keys go back to model navigation
+    sensitivitySlider.addEventListener('change', () => {
+        sensitivitySlider.blur();
+    });
 }
 
 async function loadLandmarkDirectory(directory) {

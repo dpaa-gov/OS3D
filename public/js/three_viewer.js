@@ -19,6 +19,7 @@ class ThreeViewer {
         this.isLoading = false;
         this.onLandmarkPlaced = null;
         this.isInitialized = false;
+        this.sensitivityMultiplier = 1.0;
         // Boundary visualization
         this.boundaryIndices = [];
         this.originalVertexColors = false;
@@ -32,7 +33,7 @@ class ThreeViewer {
 
         // Scene setup
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x1a1f2e);
+        this.scene.background = new THREE.Color(0x1a1d23);
 
         // Camera setup
         const width = this.container.clientWidth;
@@ -199,8 +200,9 @@ class ThreeViewer {
             ? this.model.geometry.boundingSphere.radius
             : maxDim / 2;
         const speedFactor = Math.max(0.5, Math.min(2.5, 120 / radius));
-        this.controls.rotateSpeed = 1.2 * speedFactor;
-        this.controls.zoomSpeed = 1.2 * speedFactor;
+        this.lastSpeedFactor = speedFactor;
+        this.controls.rotateSpeed = 1.2 * speedFactor * this.sensitivityMultiplier;
+        this.controls.zoomSpeed = 1.2 * speedFactor * this.sensitivityMultiplier;
 
         this.controls.update();
     }
@@ -364,6 +366,18 @@ class ThreeViewer {
      */
     setNextLandmarkNumber(num) {
         this.nextLandmarkNumber = num;
+    }
+
+    /**
+     * Set sensitivity multiplier for rotate/zoom controls
+     * @param {number} multiplier - Scale factor (0.5 = slower, 3.0 = faster)
+     */
+    setSensitivity(multiplier) {
+        this.sensitivityMultiplier = multiplier;
+        if (this.controls && this.lastSpeedFactor) {
+            this.controls.rotateSpeed = 1.2 * this.lastSpeedFactor * multiplier;
+            this.controls.zoomSpeed = 1.2 * this.lastSpeedFactor * multiplier;
+        }
     }
 
     /**

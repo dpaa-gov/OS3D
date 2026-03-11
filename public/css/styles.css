@@ -365,13 +365,38 @@ body {
 }
 
 .viewer-controls {
-    padding: 0.75rem;
-    text-align: center;
+    padding: 0.5rem 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .control-hint {
     font-size: 0.8rem;
     color: var(--text-muted);
+}
+
+.sensitivity-control {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.sensitivity-control label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.sensitivity-control input[type="range"] {
+    width: 80px;
+    height: 4px;
+}
+
+.sensitivity-control .slider-value {
+    font-size: 0.75rem;
+    min-width: 1.5rem;
+    text-align: center;
 }
 
 /* ====== Directory Browser ====== */

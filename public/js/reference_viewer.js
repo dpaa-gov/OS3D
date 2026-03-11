@@ -22,7 +22,7 @@ class ReferenceViewer {
         this.container.innerHTML = '';
 
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x1a1f2e);
+        this.scene.background = new THREE.Color(0x1a1d23);
 
         const width = this.container.clientWidth || 250;
         const height = this.container.clientHeight || 250;
