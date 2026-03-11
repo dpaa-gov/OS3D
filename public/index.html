@@ -100,7 +100,8 @@
                             </div>
                         </div>
                         <div class="viewer-controls">
-                            <span class="control-hint">Left click: Place landmark | Right drag: Rotate | Scroll:
+                            <span class="control-hint">Left click: Place landmark | Right drag: Rotate | Middle drag:
+                                Pan | Scroll:
                                 Zoom</span>
                             <div class="sensitivity-control">
                                 <label for="sensitivity-slider">Sensitivity</label>
@@ -225,6 +226,29 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Comparison Visualization (hidden until a result row is clicked) -->
+                    <div id="comparison-viz" class="comparison-viz" style="display:none;">
+                        <div class="viz-header">
+                            <button id="viz-back-btn" class="btn btn-secondary">← Back to Results</button>
+                            <span id="viz-pair-label" class="viz-pair-label">Left ↔ Right</span>
+                            <span id="viz-distance" class="viz-distance"></span>
+                            <button id="viz-toggle-btn" class="btn btn-primary">Dual Color</button>
+                        </div>
+                        <div id="comparison-viewer-container" class="comparison-viewer-container">
+                            <div class="viewer-placeholder">
+                                <span class="placeholder-icon">&#9634;</span>
+                                <p>Click a result row to visualize</p>
+                            </div>
+                        </div>
+                        <div class="viewer-controls">
+                            <span class="control-hint">Left drag: Rotate | Middle: Zoom | Right drag: Pan</span>
+                            <span class="control-hint viz-legend-hint">
+                                <span class="legend-dot" style="background:#d4a843"></span> Left (Fixed)
+                                <span class="legend-dot" style="background:#4d80e6"></span> Right (Moving)
+                            </span>
+                        </div>
+                    </div>
                 </div>
             </section>
         </main>
@@ -275,6 +299,7 @@
     <script src="js/three_viewer.js"></script>
     <script src="js/reference_viewer.js"></script>
     <script src="js/landmarks.js"></script>
+    <script src="js/comparison_viewer.js"></script>
     <script src="js/app.js"></script>
 </body>
 

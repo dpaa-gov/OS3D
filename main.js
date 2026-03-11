@@ -155,6 +155,10 @@ ipcMain.handle('run_comparison', async (_event, { leftFiles, rightFiles, percent
     return sendToSidecar({ command: 'run_comparison', leftFiles, rightFiles, percentage });
 });
 
+ipcMain.handle('visualize_pair', async (_event, { leftFile, rightFile, percentage }) => {
+    return sendToSidecar({ command: 'visualize_pair', leftFile, rightFile, percentage });
+});
+
 ipcMain.handle('get_comparison_status', async () => {
     return sendToSidecar({ command: 'comparison_status' });
 });

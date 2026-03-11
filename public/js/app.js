@@ -835,6 +835,21 @@ function initAnalysisTab() {
         exportResultsCSV();
     });
 
+    // Initialize comparison viewer
+    ComparisonViewer.init('comparison-viewer-container');
+
+    // Visualization: Back to results
+    document.getElementById('viz-back-btn').addEventListener('click', () => {
+        hideVisualization();
+    });
+
+    // Visualization: Toggle heatmap/dual-color
+    document.getElementById('viz-toggle-btn').addEventListener('click', () => {
+        const mode = ComparisonViewer.toggleMode();
+        document.getElementById('viz-toggle-btn').textContent =
+            mode === 'heatmap' ? 'Dual Color' : 'Heatmap';
+    });
+
 
     // Results tab buttons
     document.getElementById('best-matches-tab-btn').addEventListener('click', () => {
@@ -952,8 +967,77 @@ async function runComparison() {
     }
 }
 
+// ── Comparison Visualization ─────────────────────────
 
+function resolveFilePath(basename, fileList) {
+    // Cross-platform: split on both / and \ to match basenames
+    return fileList.find(f => {
+        const parts = f.split(/[/\\]/);
+        return parts[parts.length - 1] === basename;
+    }) || null;
+}
 
+async function visualizePair(leftName, rightName, distance) {
+    const leftPath = resolveFilePath(leftName, app.analysis.leftFiles);
+    const rightPath = resolveFilePath(rightName, app.analysis.rightFiles);
+
+    if (!leftPath || !rightPath) {
+        alert('Could not resolve file paths for visualization');
+        return;
+    }
+
+    // Update header
+    document.getElementById('viz-pair-label').textContent = `${leftName} \u2194 ${rightName}`;
+    document.getElementById('viz-distance').textContent = `HD: ${distance}`;
+    document.getElementById('viz-toggle-btn').textContent = 'Dual Color';
+
+    // Show loading
+    document.getElementById('loading-title').textContent = 'Visualizing Pair';
+    document.getElementById('loading-status').textContent = 'Running ICP registration...';
+    document.getElementById('elapsed-timer').textContent = '00:00';
+    document.getElementById('loading-modal').classList.add('active');
+    app.analysis.startTime = Date.now();
+    startTimer();
+
+    try {
+        const percentage = parseFloat(document.getElementById('hausdorff-slider').value);
+        const data = await window.os3d.invoke('visualize_pair', {
+            leftFile: leftPath,
+            rightFile: rightPath,
+            percentage
+        });
+
+        stopTimer();
+        hideLoadingModal();
+
+        if (data.error) {
+            alert('Visualization error: ' + data.error);
+            return;
+        }
+
+        ComparisonViewer.loadResults(data);
+        showVisualization();
+
+    } catch (error) {
+        stopTimer();
+        hideLoadingModal();
+        console.error('Visualization error:', error);
+        alert('Failed to visualize pair');
+    }
+}
+
+function showVisualization() {
+    document.querySelector('.file-lists-container').style.display = 'none';
+    document.querySelector('.results-panel').style.display = 'none';
+    document.getElementById('comparison-viz').style.display = 'flex';
+}
+
+function hideVisualization() {
+    ComparisonViewer.clear();
+    document.querySelector('.file-lists-container').style.display = '';
+    document.querySelector('.results-panel').style.display = '';
+    document.getElementById('comparison-viz').style.display = 'none';
+}
 
 function hideLoadingModal() {
     document.getElementById('loading-modal').classList.remove('active');
@@ -1095,7 +1179,7 @@ function renderAllResultsPage() {
         updatePaginationControls('all', 0, 0, 0);
     } else {
         tbody.innerHTML = pageResults.map(r => `
-            <tr>
+            <tr onclick="visualizePair('${r.leftFile}', '${r.rightFile}', ${r.distance})">
                 <td>${r.leftFile}</td>
                 <td>${r.rightFile}</td>
                 <td>${r.distance}</td>
@@ -1126,7 +1210,7 @@ function renderBestMatchesPage() {
         updatePaginationControls('best', 0, 0, 0);
     } else {
         tbody.innerHTML = pageResults.map(r => `
-            <tr>
+            <tr onclick="visualizePair('${r.leftFile}', '${r.rightFile}', ${r.distance})">
                 <td>${r.leftFile}</td>
                 <td>${r.rightFile}</td>
                 <td>${r.distance}</td>
@@ -1240,6 +1324,7 @@ function clearAnalysisDirectory() {
     document.getElementById('left-count').textContent = '0';
     document.getElementById('right-count').textContent = '0';
 
+    hideVisualization();
     clearResults();
 }
 

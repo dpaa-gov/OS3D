@@ -141,6 +141,7 @@ Use these to verify the landmarking, boundary detection, and ICP comparison work
 5. Use **Best Matches Count** slider (1–20) to control top matches displayed
 6. View results in **Best Matches** or **All Results** tabs
 7. Click **Export CSV** to save results
+8. Click any result row to **visualize the comparison** — both bones are overlaid as point clouds with a per-vertex distance heatmap (green → yellow → red). Click **Dual Color** to toggle to identity mode (gold = left, blue = right). Click **← Back to Results** to return.
 
 ## ICP Algorithm Details
 

@@ -15,6 +15,7 @@ include("lib/hole_detection.jl")
 
 # Include ICP code
 include("icp/icp.jl")
+include("icp/visualization.jl")
 include("lib/comparison.jl")
 
 using .PLYHandler
@@ -146,6 +147,24 @@ function handle_command(cmd::Dict)
                 comparison_running[] = false
                 return Dict("error" => string(e))
             end
+
+        elseif command == "visualize_pair"
+            left_file = get(cmd, "leftFile", "")
+            right_file = get(cmd, "rightFile", "")
+            percentage = Float64(get(cmd, "percentage", 0.95))
+
+            if !isfile(left_file) || !isfile(right_file)
+                return Dict("error" => "File(s) not found")
+            end
+
+            result = visualize_pair_icp(left_file, right_file; hausdorff_percentile=percentage)
+            return Dict(
+                "success" => true,
+                "fixedCoords" => result["fixedCoords"],
+                "movingCoords" => result["movingCoords"],
+                "fixedDistances" => result["fixedDistances"],
+                "movingDistances" => result["movingDistances"]
+            )
 
         elseif command == "comparison_status"
             return Dict("running" => comparison_running[])

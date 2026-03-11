@@ -59,8 +59,8 @@ class ThreeViewer {
         // So: button 2 (right) triggers ROTATE, button 1 triggers ZOOM, PAN disabled
         this.controls.mouseButtons = {
             LEFT: 2,     // right-click triggers ROTATE
-            MIDDLE: 1,   // middle-click triggers ZOOM
-            RIGHT: -1    // PAN disabled
+            MIDDLE: -1,  // drag-zoom disabled (scroll still zooms)
+            RIGHT: 1     // middle-click triggers PAN
         };
 
         // Lighting — two opposing directions for depth without washing out
