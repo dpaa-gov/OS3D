@@ -12,23 +12,81 @@ const ComparisonViewer = (function () {
     let storedData = null;
     let containerId = null;
     let initialized = false;
+    let currentColormap = 'green-red';
+    let currentPointSize = 1.5;
 
-    // ── Color helpers ────────────────────────────────
-    // Green → Yellow → Red gradient for heatmap
-    function distanceToColor(t) {
-        let r, g, b;
-        if (t < 0.5) {
-            // bright green → vivid yellow
-            r = t * 2;
-            g = 1.0;
-            b = 0.1 * (1 - t * 2);  // slight cyan tint at low end
-        } else {
-            // vivid yellow → bright red
-            r = 1.0;
-            g = 1.0 - (t - 0.5) * 2;
-            b = 0.0;
+    // ── Colormap definitions ────────────────────────
+    const colormaps = {
+        'green-red': {
+            label: 'Green → Red',
+            css: 'linear-gradient(to right, #00ff1a, #ffff00, #ff0000)',
+            map(t) {
+                let r, g, b;
+                if (t < 0.5) {
+                    r = t * 2; g = 1.0; b = 0.1 * (1 - t * 2);
+                } else {
+                    r = 1.0; g = 1.0 - (t - 0.5) * 2; b = 0.0;
+                }
+                return { r, g, b };
+            }
+        },
+        'viridis': {
+            label: 'Viridis',
+            css: 'linear-gradient(to right, #440154, #31688e, #35b779, #fde725)',
+            map(t) {
+                // Sampled control points from matplotlib viridis
+                const stops = [
+                    [0.267, 0.004, 0.329],  // dark purple
+                    [0.283, 0.141, 0.458],
+                    [0.254, 0.265, 0.530],
+                    [0.207, 0.372, 0.553],
+                    [0.164, 0.471, 0.558],
+                    [0.128, 0.567, 0.551],
+                    [0.135, 0.659, 0.518],
+                    [0.267, 0.749, 0.441],
+                    [0.478, 0.821, 0.318],
+                    [0.741, 0.873, 0.150],
+                    [0.993, 0.906, 0.144]   // bright yellow
+                ];
+                return sampleStops(stops, t);
+            }
+        },
+        'inferno': {
+            label: 'Inferno',
+            css: 'linear-gradient(to right, #000004, #420a68, #932667, #dd513a, #fca50a, #fcffa4)',
+            map(t) {
+                const stops = [
+                    [0.001, 0.000, 0.014],  // near-black
+                    [0.133, 0.027, 0.329],
+                    [0.341, 0.063, 0.431],
+                    [0.545, 0.114, 0.380],
+                    [0.735, 0.216, 0.263],
+                    [0.878, 0.376, 0.122],
+                    [0.957, 0.553, 0.039],
+                    [0.982, 0.733, 0.114],
+                    [0.945, 0.894, 0.319],
+                    [0.988, 1.000, 0.644]   // light yellow
+                ];
+                return sampleStops(stops, t);
+            }
         }
-        return { r, g, b };
+    };
+
+    function sampleStops(stops, t) {
+        const n = stops.length - 1;
+        const idx = t * n;
+        const lo = Math.min(Math.floor(idx), n - 1);
+        const hi = lo + 1;
+        const f = idx - lo;
+        return {
+            r: stops[lo][0] + (stops[hi][0] - stops[lo][0]) * f,
+            g: stops[lo][1] + (stops[hi][1] - stops[lo][1]) * f,
+            b: stops[lo][2] + (stops[hi][2] - stops[lo][2]) * f
+        };
+    }
+
+    function distanceToColor(t) {
+        return colormaps[currentColormap].map(t);
     }
 
     // ── Initialize (deferred) ───────────────────────
@@ -97,7 +155,7 @@ const ComparisonViewer = (function () {
         geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
 
         const material = new THREE.PointsMaterial({
-            size: size || 0.4,
+            size: size || 1.5,
             vertexColors: true,
             sizeAttenuation: true
         });
@@ -186,13 +244,13 @@ const ComparisonViewer = (function () {
         if (movingCloud) { scene.remove(movingCloud); movingCloud.geometry.dispose(); }
 
         if (mode === 'heatmap') {
-            fixedCloud = createPointCloud(storedData.fixedCoordsF32, storedData.fixedHeatColors, 0.4);
-            movingCloud = createPointCloud(storedData.movingCoordsF32, storedData.movingHeatColors, 0.4);
+            fixedCloud = createPointCloud(storedData.fixedCoordsF32, storedData.fixedHeatColors, currentPointSize);
+            movingCloud = createPointCloud(storedData.movingCoordsF32, storedData.movingHeatColors, currentPointSize);
             // Show legend
             if (legendEl) legendEl.style.display = '';
         } else {
-            fixedCloud = createPointCloud(storedData.fixedCoordsF32, storedData.fixedDualColors, 0.4);
-            movingCloud = createPointCloud(storedData.movingCoordsF32, storedData.movingDualColors, 0.4);
+            fixedCloud = createPointCloud(storedData.fixedCoordsF32, storedData.fixedDualColors, currentPointSize);
+            movingCloud = createPointCloud(storedData.movingCoordsF32, storedData.movingDualColors, currentPointSize);
             // Hide legend in dual mode
             if (legendEl) legendEl.style.display = 'none';
         }
@@ -244,9 +302,10 @@ const ComparisonViewer = (function () {
         const container = renderer.domElement.parentElement;
         legendEl = document.createElement('div');
         legendEl.className = 'color-legend';
+        const gradientCss = colormaps[currentColormap].css;
         legendEl.innerHTML = `
             <div class="legend-bar">
-                <div class="legend-gradient"></div>
+                <div class="legend-gradient" style="background: ${gradientCss}"></div>
             </div>
             <div class="legend-labels">
                 <span>${minDist.toFixed(2)}</span>
@@ -258,6 +317,12 @@ const ComparisonViewer = (function () {
         container.appendChild(legendEl);
     }
 
+    function setPointSize(size) {
+        currentPointSize = size;
+        if (fixedCloud) fixedCloud.material.size = size;
+        if (movingCloud) movingCloud.material.size = size;
+    }
+
     function clear() {
         if (fixedCloud) { scene.remove(fixedCloud); fixedCloud.geometry.dispose(); fixedCloud = null; }
         if (movingCloud) { scene.remove(movingCloud); movingCloud.geometry.dispose(); movingCloud = null; }
@@ -265,5 +330,38 @@ const ComparisonViewer = (function () {
         storedData = null;
     }
 
-    return { init, loadResults, toggleMode, getMode, clear };
+    function setColormap(name) {
+        if (!colormaps[name]) return;
+        currentColormap = name;
+        if (!storedData) return;
+
+        // Recompute heatmap colors from stored distances
+        const range = storedData.maxDist - storedData.minDist || 1;
+
+        for (let i = 0; i < storedData.nFixed; i++) {
+            const t = Math.min(1, Math.max(0, (storedData.fixedDistances[i] - storedData.minDist) / range));
+            const c = distanceToColor(t);
+            storedData.fixedHeatColors[i * 3] = c.r;
+            storedData.fixedHeatColors[i * 3 + 1] = c.g;
+            storedData.fixedHeatColors[i * 3 + 2] = c.b;
+        }
+
+        for (let i = 0; i < storedData.nMoving; i++) {
+            const t = Math.min(1, Math.max(0, (storedData.movingDistances[i] - storedData.minDist) / range));
+            const c = distanceToColor(t);
+            storedData.movingHeatColors[i * 3] = c.r;
+            storedData.movingHeatColors[i * 3 + 1] = c.g;
+            storedData.movingHeatColors[i * 3 + 2] = c.b;
+        }
+
+        // Refresh clouds if in heatmap mode
+        if (currentMode === 'heatmap') {
+            applyMode('heatmap');
+        }
+
+        // Update legend gradient
+        buildLegend(storedData.minDist, storedData.maxDist);
+    }
+
+    return { init, loadResults, toggleMode, getMode, setPointSize, setColormap, clear };
 })();

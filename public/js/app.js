@@ -848,8 +848,27 @@ function initAnalysisTab() {
         const mode = ComparisonViewer.toggleMode();
         document.getElementById('viz-toggle-btn').textContent =
             mode === 'heatmap' ? 'Dual Color' : 'Heatmap';
+        // Show colormap selector only in heatmap mode
+        document.getElementById('colormap-control').style.display =
+            mode === 'heatmap' ? '' : 'none';
+        // Show dual-color legend only in dual mode
+        document.getElementById('dual-color-legend').style.display =
+            mode === 'dual' ? '' : 'none';
     });
 
+    // Visualization: Point size slider
+    const pointSizeSlider = document.getElementById('point-size-slider');
+    const pointSizeValue = document.getElementById('point-size-value');
+    pointSizeSlider.addEventListener('input', () => {
+        const size = parseFloat(pointSizeSlider.value);
+        pointSizeValue.textContent = size.toFixed(1);
+        ComparisonViewer.setPointSize(size);
+    });
+
+    // Visualization: Colormap selector
+    document.getElementById('colormap-select').addEventListener('change', (e) => {
+        ComparisonViewer.setColormap(e.target.value);
+    });
 
     // Results tab buttons
     document.getElementById('best-matches-tab-btn').addEventListener('click', () => {

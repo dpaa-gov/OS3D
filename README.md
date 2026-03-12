@@ -238,6 +238,8 @@ OS3D/
 
 - **Use mesh face normals directly for ICP**: Currently, surface normals are estimated from the point cloud via KNN. Since the input originates from PLY meshes with face connectivity, true vertex normals could be computed from adjacent face normals and carried through the XYZ pipeline.
 
+- **Boundary exclusion during ICP for small fragments**: Currently, fracture boundary points participate in the ICP registration loop and are only excluded from the final Hausdorff distance computation. For larger bones with moderate fragmentation, this works well because intact cortical surface dominates the correspondence set, and the percentile trimming and planarity filters handle boundary noise effectively. However, for highly fragmentary remains where fracture margins constitute a large proportion of the total surface area, these boundary correspondences could degrade registration accuracy by attracting false matches from non-homologous regions. A potential improvement would be to exclude boundary-indexed vertices from the ICP subsample (`pcfix.sel`) before the iterative loop, so that only intact cortical surface drives the alignment. This should be tested empirically against the current approach using known fragment-to-complete and fragment-to-fragment test cases to determine whether it improves convergence and alignment quality for small fragments.
+
 ## TODO
 
 - [ ] Validate percentile ICP with known fragment-to-complete test cases
