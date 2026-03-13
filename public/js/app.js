@@ -318,6 +318,12 @@ async function loadLandmarkDirectory(directory) {
                     nextNumInput.value = nextNum;
                     nextNumInput.classList.remove('input-warning');
                 };
+                app.landmarks.viewer.onLandmarkMoved = (landmark) => {
+                    // Update position in manager (sync from viewer, marks dirty)
+                    const currentLandmarks = app.landmarks.viewer.getLandmarks();
+                    app.landmarks.manager.updateFromViewer(currentLandmarks);
+                    updateLandmarkList();
+                };
             }
 
             // Import previously saved landmarks from processed/ folder
@@ -386,8 +392,9 @@ async function loadCurrentModel() {
 
     const filepath = files[app.landmarks.currentIndex];
 
-    // Save current landmarks before switching
-    if (app.landmarks.viewer) {
+    // Save current landmarks before switching (skip if no model loaded yet,
+    // otherwise we'd overwrite imported landmarks with an empty array)
+    if (app.landmarks.viewer && app.landmarks.viewer.model) {
         const currentLandmarks = app.landmarks.viewer.getLandmarks();
         app.landmarks.manager.updateFromViewer(currentLandmarks);
     }

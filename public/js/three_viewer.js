@@ -18,7 +18,10 @@ class ThreeViewer {
         this.nextLandmarkNumber = 1;
         this.isLoading = false;
         this.onLandmarkPlaced = null;
+        this.onLandmarkMoved = null;
         this.isInitialized = false;
+        // Reposition state (shift+click to pick up, click to drop)
+        this._repositioning = null; // { index, sphere, label } when active
         this.sensitivityMultiplier = 1.0;
         // Boundary visualization
         this.boundaryIndices = [];
@@ -51,7 +54,7 @@ class ThreeViewer {
         this.controls = new THREE.TrackballControls(this.camera, this.renderer.domElement);
         this.controls.rotateSpeed = 1.2;
         this.controls.zoomSpeed = 1.2;
-        this.controls.panSpeed = 0.3;
+        this.controls.panSpeed = 0.8;
         this.controls.noRotate = false;
         this.controls.staticMoving = true;
         // TrackballControls: LEFT→ROTATE, MIDDLE→ZOOM, RIGHT→PAN
@@ -80,6 +83,14 @@ class ThreeViewer {
         // Event listeners — store reference so dispose() can remove them
         this._clickHandler = (e) => this.onMouseClick(e);
         this.container.addEventListener('click', this._clickHandler);
+
+        // Escape cancels landmark repositioning
+        this._keyHandler = (e) => {
+            if (e.key === 'Escape' && this._repositioning) {
+                this._cancelReposition();
+            }
+        };
+        document.addEventListener('keydown', this._keyHandler);
 
         // Use ResizeObserver for proper container resize detection
         this.resizeObserver = new ResizeObserver(() => this.onWindowResize());
@@ -113,6 +124,10 @@ class ThreeViewer {
      */
     async loadModelFromPath(filepath, existingLandmarks = []) {
         this.isLoading = true;
+
+        // Cancel any active reposition
+        this._repositioning = null;
+        this.container.style.cursor = '';
 
         // Remove existing model and null the reference immediately
         // so no phantom clicks can interact with disposed geometry during async loading
@@ -208,19 +223,100 @@ class ThreeViewer {
     }
 
     onMouseClick(event) {
-        if (!this.model || this.isLoading || event.button !== 0) return; // Only left click, not during loading
+        if (!this.model || this.isLoading || event.button !== 0) return;
 
         // Calculate mouse position in normalized device coordinates
         const rect = this.container.getBoundingClientRect();
         this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
-        // Perform raycast
         this.raycaster.setFromCamera(this.mouse, this.camera);
 
+        // --- If repositioning, drop the landmark at the new mesh location ---
+        if (this._repositioning) {
+            let intersects;
+            if (this.model instanceof THREE.Points) {
+                this.raycaster.params.Points.threshold = 2;
+                intersects = this.raycaster.intersectObject(this.model);
+            } else {
+                intersects = this.raycaster.intersectObject(this.model);
+            }
+
+            if (intersects.length > 0) {
+                const p = intersects[0].point;
+                const info = this._repositioning;
+
+                // Move sphere + label to new position
+                info.sphere.position.set(p.x, p.y, p.z);
+                if (info.label) {
+                    info.label.position.set(p.x + 3.5, p.y + 3.5, p.z + 3.5);
+                }
+
+                // Restore sphere opacity
+                info.sphere.material.opacity = 0.9;
+                info.sphere.material.needsUpdate = true;
+
+                // Notify app
+                if (this.onLandmarkMoved) {
+                    this.onLandmarkMoved({ index: info.index, x: p.x, y: p.y, z: p.z });
+                }
+
+                this._repositioning = null;
+                this.container.style.cursor = '';
+            }
+            return;
+        }
+
+        // --- Shift+click: pick up the nearest landmark for repositioning ---
+        if (event.shiftKey) {
+            // Raycast against mesh surface to get a 3D point
+            let intersects;
+            if (this.model instanceof THREE.Points) {
+                this.raycaster.params.Points.threshold = 2;
+                intersects = this.raycaster.intersectObject(this.model);
+            } else {
+                intersects = this.raycaster.intersectObject(this.model);
+            }
+
+            if (intersects.length > 0) {
+                const clickPoint = intersects[0].point;
+
+                // Find the closest landmark sphere to this 3D point
+                const spheres = this.landmarkSpheres.filter(
+                    o => o.userData.landmarkIndex !== undefined && !o.userData.landmarkLabel
+                );
+                if (spheres.length === 0) return;
+
+                let closest = null;
+                let closestDist = Infinity;
+                for (const s of spheres) {
+                    const d = clickPoint.distanceTo(s.position);
+                    if (d < closestDist) {
+                        closestDist = d;
+                        closest = s;
+                    }
+                }
+
+                if (closest) {
+                    const idx = closest.userData.landmarkIndex;
+                    const label = this.landmarkSpheres.find(
+                        o => o.userData.forLandmarkIndex === idx
+                    );
+
+                    // Visual feedback — dim the sphere while repositioning
+                    closest.material.opacity = 0.4;
+                    closest.material.needsUpdate = true;
+
+                    this._repositioning = { index: idx, sphere: closest, label };
+                    this.container.style.cursor = 'crosshair';
+                }
+            }
+            return;
+        }
+
+        // --- Normal click: place a new landmark ---
         let intersects;
         if (this.model instanceof THREE.Points) {
-            // For point clouds, use a threshold
             this.raycaster.params.Points.threshold = 2;
             intersects = this.raycaster.intersectObject(this.model);
         } else {
@@ -234,7 +330,6 @@ class ThreeViewer {
 
             this.addLandmarkSphere(point.x, point.y, point.z, landmarkIndex);
 
-            // Callback to notify app
             if (this.onLandmarkPlaced) {
                 this.onLandmarkPlaced({
                     index: landmarkIndex,
@@ -244,6 +339,14 @@ class ThreeViewer {
                 });
             }
         }
+    }
+
+    _cancelReposition() {
+        if (!this._repositioning) return;
+        this._repositioning.sphere.material.opacity = 0.9;
+        this._repositioning.sphere.material.needsUpdate = true;
+        this._repositioning = null;
+        this.container.style.cursor = '';
     }
 
     // Distinct color per landmark index — consistent across all models
@@ -549,6 +652,11 @@ class ThreeViewer {
             this.container.removeEventListener('click', this._clickHandler);
             this._clickHandler = null;
         }
+        if (this._keyHandler) {
+            document.removeEventListener('keydown', this._keyHandler);
+            this._keyHandler = null;
+        }
+        this._repositioning = null;
         if (this.renderer) {
             this.renderer.dispose();
         }
