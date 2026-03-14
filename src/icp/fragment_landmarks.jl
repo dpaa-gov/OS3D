@@ -31,7 +31,7 @@ function remove_fragmented_margins(fixed_array::Matrix, moving_array::Matrix,
     
     # Percentile-based Hausdorff Distance
     if size(test1, 1) == 0 || size(test2, 1) == 0
-        return Inf  # No valid points for comparison
+        return 9999.0  # No valid non-boundary points — sentinel value (Inf is not valid JSON)
     end
     
     # Use quantile (percentile) instead of mean for robustness to outliers

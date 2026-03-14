@@ -71,6 +71,8 @@ function handle_command(cmd::Dict)
                 filepath = get(file_info, "filepath", "")
                 landmarks = get(file_info, "landmarks", [])
                 boundary_indices = get(file_info, "boundaryIndices", Int[])
+                guide_lm = get(file_info, "guideLandmark", nothing)
+                guide_landmarks = guide_lm !== nothing ? [guide_lm] : []
 
                 if !isfile(filepath)
                     push!(errors, Dict("file" => filepath, "error" => "File not found"))
@@ -79,7 +81,7 @@ function handle_command(cmd::Dict)
 
                 try
                     original_data = read_ply_binary(filepath)
-                    output_path = copy_to_processed(source_directory, basename(filepath), original_data, landmarks, boundary_indices)
+                    output_path = copy_to_processed(source_directory, basename(filepath), original_data, landmarks, boundary_indices; guide_landmarks=guide_landmarks)
                     push!(saved, output_path)
                 catch e
                     push!(errors, Dict("file" => filepath, "error" => string(e)))

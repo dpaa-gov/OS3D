@@ -188,7 +188,7 @@ Write an XYZ file containing all vertices, with landmarks marked with L suffix
 and boundary vertices marked with B suffix.
 Format: x y z [B] [L<index>]
 """
-function write_xyz_with_landmarks(filepath::String, ply_data::Dict, landmarks::Vector, boundary_indices::AbstractVector=Int[])
+function write_xyz_with_landmarks(filepath::String, ply_data::Dict, landmarks::Vector, boundary_indices::AbstractVector=Int[]; guide_landmarks::Vector=[])
     # Create directory if needed
     dir = dirname(filepath)
     if !isempty(dir) && !isdir(dir)
@@ -223,6 +223,15 @@ function write_xyz_with_landmarks(filepath::String, ply_data::Dict, landmarks::V
             lm_num = get(lm, "index", 0)
             println(io, "$x $y $z L$lm_num")
         end
+        
+        # Write guide landmarks with G marker
+        for glm in guide_landmarks
+            x = get(glm, "x", 0.0)
+            y = get(glm, "y", 0.0)
+            z = get(glm, "z", 0.0)
+            g_num = get(glm, "index", 1)
+            println(io, "$x $y $z G$g_num")
+        end
     end
     
     return xyz_path
@@ -233,7 +242,7 @@ end
 
 Save an XYZ file with landmarks and boundary markers to the 'processed' subdirectory.
 """
-function copy_to_processed(source_dir::String, filename::String, ply_data::Dict, landmarks::Vector, boundary_indices::Vector=Int[])
+function copy_to_processed(source_dir::String, filename::String, ply_data::Dict, landmarks::Vector, boundary_indices::Vector=Int[]; guide_landmarks::Vector=[])
     processed_dir = joinpath(source_dir, "processed")
     if !isdir(processed_dir)
         mkpath(processed_dir)
@@ -241,7 +250,7 @@ function copy_to_processed(source_dir::String, filename::String, ply_data::Dict,
     
     # Use original filename but save as .xyz
     output_path = joinpath(processed_dir, filename)
-    return write_xyz_with_landmarks(output_path, ply_data, landmarks, boundary_indices)
+    return write_xyz_with_landmarks(output_path, ply_data, landmarks, boundary_indices; guide_landmarks=guide_landmarks)
 end
 
 """
@@ -292,6 +301,7 @@ function import_processed_landmarks(directory::String)
     for xyz_file in xyz_files
         xyz_path = joinpath(processed_dir, xyz_file)
         landmarks = []
+        guide_landmarks = []
         boundary_indices = Int[]
         vertex_index = 0
         
@@ -319,6 +329,25 @@ function import_processed_landmarks(directory::String)
                     continue
                 end
                 
+                # Check for guide landmark marker (last part starts with G)
+                if startswith(last_part, "G") && length(last_part) > 1
+                    g_num_str = last_part[2:end]
+                    g_num = tryparse(Int, g_num_str)
+                    if g_num !== nothing
+                        x = parse(Float64, parts[1])
+                        y = parse(Float64, parts[2])
+                        z = parse(Float64, parts[3])
+                        push!(guide_landmarks, Dict(
+                            "x" => x,
+                            "y" => y, 
+                            "z" => z,
+                            "index" => g_num,
+                            "type" => "guide"
+                        ))
+                    end
+                    continue
+                end
+                
                 # Check for boundary marker
                 if last_part == "B"
                     push!(boundary_indices, vertex_index)
@@ -336,12 +365,17 @@ function import_processed_landmarks(directory::String)
         # Find the full PLY path
         ply_path = joinpath(directory, ply_filename)
         
-        if isfile(ply_path) && (!isempty(landmarks) || !isempty(boundary_indices))
-            push!(results, Dict(
+        if isfile(ply_path) && (!isempty(landmarks) || !isempty(boundary_indices) || !isempty(guide_landmarks))
+            result = Dict(
                 "plyPath" => ply_path,
                 "landmarks" => landmarks,
                 "boundaryIndices" => boundary_indices
-            ))
+            )
+            # Include guide landmark if present (only first one)
+            if !isempty(guide_landmarks)
+                result["guideLandmark"] = guide_landmarks[1]
+            end
+            push!(results, result)
         end
     end
     

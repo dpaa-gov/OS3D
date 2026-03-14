@@ -720,6 +720,60 @@ body {
     font-size: 0.85rem;
 }
 
+/* ====== Guide Landmark Sliders ====== */
+.guide-slider-group {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.4rem;
+}
+
+.guide-slider-group label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    min-width: 1.2rem;
+    font-weight: 600;
+}
+
+.guide-slider-group input[type="range"] {
+    flex: 1;
+    height: 4px;
+}
+
+.guide-slider-group .slider-value {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    min-width: 3.5rem;
+    text-align: right;
+    font-family: 'Monaco', 'Consolas', monospace;
+}
+
+.guide-btn-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+/* ====== Shortcuts Table ====== */
+.shortcuts-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.shortcuts-table td {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.shortcuts-table td:first-child {
+    white-space: nowrap;
+    width: 120px;
+    text-align: right;
+    padding-right: 1rem;
+}
+
 /* ====== Analysis Layout ====== */
 .analysis-layout {
     display: flex;

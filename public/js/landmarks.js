@@ -9,6 +9,8 @@ class LandmarkManager {
         this.landmarksPerFile = new Map();
         // Map of filepath -> boundary indices array
         this.boundariesPerFile = new Map();
+        // Map of filepath -> guide landmark {index, x, y, z} or null
+        this.guideLandmarksPerFile = new Map();
         // Track which files have unsaved changes
         this.dirtyFiles = new Set();
         this.currentFilePath = null;
@@ -152,17 +154,19 @@ class LandmarkManager {
     }
 
     /**
-     * Get all files with their landmarks and boundaries for saving
+     * Get all files with their landmarks, guide landmarks, and boundaries for saving
      */
     getAllFilesData() {
         const data = [];
         for (const filepath of this.dirtyFiles) {
             const landmarks = this.landmarksPerFile.get(filepath);
-            // Only include files that have landmarks placed
-            if (!landmarks || landmarks.length === 0) continue;
+            const guideLandmark = this.guideLandmarksPerFile.get(filepath) || null;
+            // Only include files that have landmarks or guide landmarks placed
+            if ((!landmarks || landmarks.length === 0) && !guideLandmark) continue;
             data.push({
                 filepath: filepath,
-                landmarks: landmarks,
+                landmarks: landmarks || [],
+                guideLandmark: guideLandmark,
                 boundaryIndices: this.boundariesPerFile.get(filepath) || []
             });
         }
@@ -175,6 +179,7 @@ class LandmarkManager {
     clearAll() {
         this.landmarksPerFile.clear();
         this.boundariesPerFile.clear();
+        this.guideLandmarksPerFile.clear();
         this.dirtyFiles.clear();
         this.currentFilePath = null;
     }
@@ -185,6 +190,9 @@ class LandmarkManager {
     hasAnyLandmarks() {
         for (const landmarks of this.landmarksPerFile.values()) {
             if (landmarks.length > 0) return true;
+        }
+        for (const guide of this.guideLandmarksPerFile.values()) {
+            if (guide) return true;
         }
         return false;
     }
@@ -201,6 +209,34 @@ class LandmarkManager {
      */
     getDirtyCount() {
         return this.dirtyFiles.size;
+    }
+
+    // ── Guide Landmark Methods ──
+
+    /**
+     * Set guide landmark for current file
+     */
+    setGuideLandmark(guideLandmark) {
+        if (!this.currentFilePath) return;
+        this.guideLandmarksPerFile.set(this.currentFilePath, guideLandmark);
+        this.dirtyFiles.add(this.currentFilePath);
+    }
+
+    /**
+     * Get guide landmark for current file
+     */
+    getCurrentGuideLandmark() {
+        if (!this.currentFilePath) return null;
+        return this.guideLandmarksPerFile.get(this.currentFilePath) || null;
+    }
+
+    /**
+     * Remove guide landmark for current file
+     */
+    removeGuideLandmark() {
+        if (!this.currentFilePath) return;
+        this.guideLandmarksPerFile.delete(this.currentFilePath);
+        this.dirtyFiles.add(this.currentFilePath);
     }
 }
 

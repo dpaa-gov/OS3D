@@ -127,14 +127,19 @@ Use these to verify the landmarking, boundary detection, and ICP comparison work
 
 ## Usage
 
-### Process Tab
-1. Click **Browse** to select a folder containing PLY files
+### Landmarks Tab
+1. Click **Browse** or paste a path and press **Enter** to load a folder of PLY files
 2. Navigate through models with **← Back** / **Next →**
-3. Click on the 3D model to place landmarks (boundary vertices are detected automatically)
-4. Click **Save All** to export all files to XYZ format
+3. Click on the 3D model to place anatomical landmarks (boundary vertices are detected automatically)
+4. Press **G** to add a **Guide Landmark** — a crosshair appears at the bone centroid, adjustable with X/Y/Z sliders or **X/Y/Z + Arrow** key combos
+5. Press **R** to set the current model as a reference in the sidebar viewer
+6. Click **Save All** (or **Ctrl+S**) to export all files to XYZ format
+
+### Guide Landmarks
+Guide landmarks allow users to place virtual anchor points in empty 3D space — for example, estimating where the midshaft would be on a fragmentary bone. These are used during the initial weighted Procrustes alignment (with low weight 0.1) to improve the starting pose before ICP refinement. They are marked as `G1` in the XYZ file format.
 
 ### Analysis Tab
-1. Click **Browse** to select a folder containing XYZ files
+1. Click **Browse** or paste a path and press **Enter** to load a folder of XYZ files
 2. Files are automatically sorted into Left/Right based on filename
 3. Adjust **Hausdorff Percentage** (default 0.95)
 4. Click **Run Comparisons** to start ICP analysis
@@ -142,6 +147,22 @@ Use these to verify the landmarking, boundary detection, and ICP comparison work
 6. View results in **Best Matches** or **All Results** tabs
 7. Click **Export CSV** to save results
 8. Click any result row to **visualize the comparison** — both bones are overlaid as point clouds with a per-vertex distance heatmap (green → yellow → red). Click **Dual Color** to toggle to identity mode (gold = left, blue = right). Click **← Back to Results** to return.
+
+### Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `←` `→` | Previous / Next model |
+| `Backspace` | Reset landmarks |
+| `R` | Set as reference |
+| `G` | Add / Remove guide landmark |
+| `Ctrl+S` | Save all |
+| `Esc` | Close reference / shortcuts panel |
+| `X`+`←→` | Nudge guide X axis |
+| `Y`+`←→` | Nudge guide Y axis |
+| `Z`+`←→` | Nudge guide Z axis |
+| `Enter` | Load pasted path |
+| `Shift+?` | Toggle shortcuts window |
 
 ## ICP Algorithm Details
 
@@ -163,7 +184,7 @@ Boundary vertices (holes and fragment edges) are **automatically detected** when
 - Correspondences **to boundary points are ignored**
 
 ### Initial Alignment (Landmark-Based)
-If 3+ matching landmarks are present in both meshes, a rigid alignment is computed before ICP refinement. The moving mesh X-axis is mirrored for left/right comparison.
+If 3+ matching landmarks are present in both meshes, a weighted Procrustes alignment is computed before ICP refinement. The moving mesh X-axis is mirrored for left/right comparison. When guide landmarks (`G` markers) are present, they are included with a low weight (0.1 vs 1.0 for anatomical landmarks) to improve the initial pose without dominating the alignment.
 
 **Landmark Requirements**
 
@@ -194,6 +215,7 @@ x y z           # regular vertex
 x y z B         # boundary vertex
 x y z L1        # landmark 1
 x y z L2        # landmark 2
+x y z G1        # guide landmark 1
 ```
 
 **File Naming Requirement**: For analysis, filenames must contain `left` or `right` (case-insensitive) to be sorted into comparison groups.
@@ -222,6 +244,7 @@ OS3D/
 │   └── js/
 │       ├── app.js              # Application logic
 │       ├── three_viewer.js     # Three.js 3D viewer
+│       ├── reference_viewer.js # Reference sidebar viewer
 │       ├── landmarks.js        # Landmark management
 │       └── lib/                # Three.js libraries
 ├── build/

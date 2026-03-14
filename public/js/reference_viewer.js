@@ -91,7 +91,7 @@ class ReferenceViewer {
      * @param {string} filepath - Full path to the PLY file
      * @param {Array} landmarks - Array of {x, y, z, index} landmark objects
      */
-    async loadReference(filepath, landmarks = []) {
+    async loadReference(filepath, landmarks = [], guideLandmark = null) {
         if (!this.isInitialized) this.init();
 
         // Clear existing model
@@ -127,6 +127,11 @@ class ReferenceViewer {
             // Add landmarks
             for (const lm of landmarks) {
                 this.addLandmark(lm.x, lm.y, lm.z, lm.index);
+            }
+
+            // Add guide landmark if present
+            if (guideLandmark) {
+                this.addGuideLandmark(guideLandmark.x, guideLandmark.y, guideLandmark.z);
             }
 
             this.currentFilepath = filepath;
@@ -218,6 +223,40 @@ class ReferenceViewer {
         const sprite = new THREE.Sprite(spriteMaterial);
         sprite.position.set(x + 3.5, y + 3.5, z + 3.5);
         sprite.scale.set(8, 8, 1);
+        this.scene.add(sprite);
+        this.landmarkSpheres.push(sprite);
+    }
+
+    addGuideLandmark(x, y, z) {
+        // Diamond marker (octahedron) — same as main viewer
+        const geo = new THREE.OctahedronGeometry(1.5, 0);
+        const mat = new THREE.MeshBasicMaterial({
+            color: 0x00e5ff, transparent: true, opacity: 0.9,
+            depthTest: false, depthWrite: false
+        });
+        const diamond = new THREE.Mesh(geo, mat);
+        diamond.position.set(x, y, z);
+        diamond.renderOrder = 999;
+        this.scene.add(diamond);
+        this.landmarkSpheres.push(diamond);
+
+        // G1 label
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 64; canvas.height = 64;
+        ctx.fillStyle = '#00e5ff';
+        ctx.beginPath(); ctx.arc(32, 32, 30, 0, 2 * Math.PI); ctx.fill();
+        ctx.fillStyle = 'black';
+        ctx.font = 'bold 28px Arial';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('G1', 32, 32);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const spriteMat = new THREE.SpriteMaterial({ map: texture, depthTest: false, depthWrite: false });
+        const sprite = new THREE.Sprite(spriteMat);
+        sprite.position.set(x + 3, y + 3, z + 3);
+        sprite.scale.set(6, 6, 1);
+        sprite.renderOrder = 999;
         this.scene.add(sprite);
         this.landmarkSpheres.push(sprite);
     }

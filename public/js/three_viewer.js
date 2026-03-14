@@ -643,6 +643,234 @@ class ThreeViewer {
 
 
 
+    // ══════════════════════════════════════════════════════════
+    // Guide Landmark — Crosshair placement in 3D space
+    // ══════════════════════════════════════════════════════════
+
+    /**
+     * Show the guide landmark crosshair at the bone centroid
+     * Returns {x, y, z, bbox} — the initial position and bounding box for slider ranges
+     */
+    showGuideCrosshair() {
+        if (!this.model) return null;
+
+        // Remove existing crosshair if any
+        this.hideGuideCrosshair();
+
+        // Compute bone centroid and bounding box
+        const positions = this.model.geometry.getAttribute('position');
+        let cx = 0, cy = 0, cz = 0;
+        const n = positions.count;
+        let minX = Infinity, minY = Infinity, minZ = Infinity;
+        let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+        for (let i = 0; i < n; i++) {
+            const x = positions.getX(i), y = positions.getY(i), z = positions.getZ(i);
+            cx += x; cy += y; cz += z;
+            minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+            minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+            minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+        }
+        cx /= n; cy /= n; cz /= n;
+
+        // Extend bounding box for slider range
+        // Long axis gets much more room (150%) so crosshair can reach into missing anatomy
+        // Short axes get modest extension (50%)
+        const ranges = [maxX - minX, maxY - minY, maxZ - minZ];
+        const maxRange = Math.max(...ranges);
+        const extFactorX = (ranges[0] === maxRange) ? 1.5 : 0.5;
+        const extFactorY = (ranges[1] === maxRange) ? 1.5 : 0.5;
+        const extFactorZ = (ranges[2] === maxRange) ? 1.5 : 0.5;
+        const extX = (maxX - minX) * extFactorX;
+        const extY = (maxY - minY) * extFactorY;
+        const extZ = (maxZ - minZ) * extFactorZ;
+
+        // Crosshair size — proportional to bone
+        const armLength = Math.max(extX, extY, extZ) * 0.6;
+
+        // Create crosshair lines — color-coded per axis (R=X, G=Y, B=Z)
+        const makeMat = (color) => new THREE.LineBasicMaterial({
+            color, depthTest: false, depthWrite: false, linewidth: 2
+        });
+        const xMat = makeMat(0xff4444); // red
+        const yMat = makeMat(0x44cc44); // green
+        const zMat = makeMat(0x4488ff); // blue
+
+        // X axis line (red)
+        const hGeo = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(-armLength, 0, 0),
+            new THREE.Vector3(armLength, 0, 0)
+        ]);
+        const hLine = new THREE.Line(hGeo, xMat);
+
+        // Y axis line (green)
+        const vGeo = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0, -armLength, 0),
+            new THREE.Vector3(0, armLength, 0)
+        ]);
+        const vLine = new THREE.Line(vGeo, yMat);
+
+        // Z axis line (blue)
+        const dGeo = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0, 0, -armLength),
+            new THREE.Vector3(0, 0, armLength)
+        ]);
+        const dLine = new THREE.Line(dGeo, zMat);
+
+        // Group all lines
+        this._guideCrosshair = new THREE.Group();
+        this._guideCrosshair.add(hLine, vLine, dLine);
+        this._guideCrosshair.position.set(cx, cy, cz);
+        this._guideCrosshair.renderOrder = 999;
+        this.scene.add(this._guideCrosshair);
+
+        // Add center sphere (small dot at intersection)
+        const dotGeo = new THREE.SphereGeometry(armLength * 0.06, 8, 8);
+        const dotMat = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            depthTest: false,
+            depthWrite: false,
+            transparent: true,
+            opacity: 0.8
+        });
+        const dot = new THREE.Mesh(dotGeo, dotMat);
+        this._guideCrosshair.add(dot);
+
+        return {
+            x: cx, y: cy, z: cz,
+            bbox: {
+                minX: minX - extX, maxX: maxX + extX,
+                minY: minY - extY, maxY: maxY + extY,
+                minZ: minZ - extZ, maxZ: maxZ + extZ
+            }
+        };
+    }
+
+    /**
+     * Update crosshair position from sliders
+     */
+    updateGuideCrosshairPosition(x, y, z) {
+        if (!this._guideCrosshair) return;
+        this._guideCrosshair.position.set(x, y, z);
+    }
+
+    /**
+     * Get current crosshair position
+     */
+    getGuideCrosshairPosition() {
+        if (!this._guideCrosshair) return null;
+        const p = this._guideCrosshair.position;
+        return { x: p.x, y: p.y, z: p.z };
+    }
+
+    /**
+     * Confirm guide landmark — replace crosshair with a diamond marker
+     * Returns the guide landmark data {index: 1, x, y, z, type: 'guide'}
+     */
+    confirmGuideLandmark() {
+        if (!this._guideCrosshair) return null;
+
+        const pos = this._guideCrosshair.position.clone();
+        this.hideGuideCrosshair();
+
+        // Create diamond-shaped marker (octahedron) — distinct from regular sphere landmarks
+        const geo = new THREE.OctahedronGeometry(2.0, 0);
+        const mat = new THREE.MeshBasicMaterial({
+            color: 0x00e5ff,
+            transparent: true,
+            opacity: 0.9,
+            depthTest: false,
+            depthWrite: false
+        });
+        const diamond = new THREE.Mesh(geo, mat);
+        diamond.position.copy(pos);
+        diamond.userData.guideLandmark = true;
+        diamond.userData.guideIndex = 1;
+        diamond.renderOrder = 999;
+        this.scene.add(diamond);
+
+        // Add "G1" label
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 64;
+        canvas.height = 64;
+        ctx.fillStyle = '#00e5ff';
+        ctx.beginPath();
+        ctx.arc(32, 32, 30, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.fillStyle = 'black';
+        ctx.font = 'bold 28px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('G1', 32, 32);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const spriteMat = new THREE.SpriteMaterial({
+            map: texture,
+            depthTest: false,
+            depthWrite: false
+        });
+        const sprite = new THREE.Sprite(spriteMat);
+        sprite.position.set(pos.x + 3.5, pos.y + 3.5, pos.z + 3.5);
+        sprite.scale.set(8, 8, 1);
+        sprite.userData.guideLandmarkLabel = true;
+        sprite.userData.forGuideIndex = 1;
+        sprite.renderOrder = 999;
+        this.scene.add(sprite);
+
+        // Store references for removal
+        this._guideLandmarkObjects = [diamond, sprite];
+
+        return { index: 1, x: pos.x, y: pos.y, z: pos.z, type: 'guide' };
+    }
+
+    /**
+     * Remove confirmed guide landmark
+     */
+    removeGuideLandmark() {
+        this.hideGuideCrosshair();
+        if (this._guideLandmarkObjects) {
+            for (const obj of this._guideLandmarkObjects) {
+                this.scene.remove(obj);
+                if (obj.geometry) obj.geometry.dispose();
+                if (obj.material) {
+                    if (obj.material.map) obj.material.map.dispose();
+                    obj.material.dispose();
+                }
+            }
+            this._guideLandmarkObjects = null;
+        }
+    }
+
+    /**
+     * Get guide landmark data if one exists
+     */
+    getGuideLandmark() {
+        if (!this._guideLandmarkObjects || this._guideLandmarkObjects.length === 0) return null;
+        const diamond = this._guideLandmarkObjects[0];
+        return {
+            index: 1,
+            x: diamond.position.x,
+            y: diamond.position.y,
+            z: diamond.position.z,
+            type: 'guide'
+        };
+    }
+
+    /**
+     * Hide the crosshair (cancel or after confirm)
+     */
+    hideGuideCrosshair() {
+        if (this._guideCrosshair) {
+            this.scene.remove(this._guideCrosshair);
+            // Dispose all children
+            this._guideCrosshair.traverse(child => {
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) child.material.dispose();
+            });
+            this._guideCrosshair = null;
+        }
+    }
+
     dispose() {
         if (this.resizeObserver) {
             this.resizeObserver.disconnect();

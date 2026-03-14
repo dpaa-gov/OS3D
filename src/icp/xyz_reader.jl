@@ -4,10 +4,12 @@
 # Parsed XYZ file data struct
 # - vertices: Nx3 matrix of mesh vertices (excludes landmarks)
 # - landmarks: Vector of (landmark_index, x, y, z) tuples
+# - guide_landmarks: Vector of (guide_index, x, y, z) tuples — low-weight alignment aids
 # - boundary_indices: 1-based indices of boundary vertices
 struct XYZData
     vertices::Matrix{Float64}
     landmarks::Vector{Tuple{Int,Float64,Float64,Float64}}
+    guide_landmarks::Vector{Tuple{Int,Float64,Float64,Float64}}
     boundary_indices::Vector{Int}
 end
 
@@ -16,7 +18,8 @@ end
 # - Lines with no 4th column: regular vertex
 # - Lines with 4th column "B": boundary vertex
 # - Lines with 4th column "Ln" (e.g., L1, L2): landmark point (excluded from vertices)
-# Returns XYZData with separated vertices, landmarks, and boundary indices.
+# - Lines with 4th column "Gn" (e.g., G1, G2): guide landmark (excluded from vertices)
+# Returns XYZData with separated vertices, landmarks, guide landmarks, and boundary indices.
 function read_xyz(filepath::String)
     if !isfile(filepath)
         error("File not found: $filepath")
@@ -24,6 +27,7 @@ function read_xyz(filepath::String)
     
     vertices = Vector{Vector{Float64}}()
     landmarks = Vector{Tuple{Int,Float64,Float64,Float64}}()
+    guide_landmarks = Vector{Tuple{Int,Float64,Float64,Float64}}()
     boundary_indices = Vector{Int}()
     
     vertex_index = 0
@@ -54,6 +58,13 @@ function read_xyz(filepath::String)
                     push!(landmarks, (landmark_num, x, y, z))
                 end
                 # Don't add to vertices - landmarks are separate
+            elseif startswith(marker, "G") && length(marker) > 1
+                # Guide landmark row - parse guide number and store separately
+                guide_num = tryparse(Int, marker[2:end])
+                if guide_num !== nothing
+                    push!(guide_landmarks, (guide_num, x, y, z))
+                end
+                # Don't add to vertices - guide landmarks are separate
             else
                 # Regular vertex or boundary vertex
                 vertex_index += 1
@@ -75,8 +86,9 @@ function read_xyz(filepath::String)
     
     # Sort landmarks by index
     sort!(landmarks, by = x -> x[1])
+    sort!(guide_landmarks, by = x -> x[1])
     
-    return XYZData(vertex_matrix, landmarks, boundary_indices)
+    return XYZData(vertex_matrix, landmarks, guide_landmarks, boundary_indices)
 end
 
 # get_landmark_coords(data::XYZData) -> Matrix{Float64}

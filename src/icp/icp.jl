@@ -82,19 +82,17 @@ function simpleicp_new(data_fix, data_mov, pcfix, sel_orig;
     # Mirror X for left/right comparison
     X_mov[:, 1] = X_mov[:, 1] * -1
     
-    # Initial alignment using landmarks
-    fix_coords, mov_coords = get_corresponding_landmark_coords(data_fix, data_mov)
+    # Initial alignment using landmarks (weighted if guide landmarks present)
+    fix_coords, mov_coords, weights = get_corresponding_landmarks_weighted(data_fix, data_mov)
     
    if size(fix_coords, 1) >= 3
 
         # Mirror the moving landmarks X coordinate too
         mov_coords[:, 1] = mov_coords[:, 1] * -1
 
-        # Center on landmark centroids, rotate, uncenter to fixed position
-        cm = mean(mov_coords, dims=1)
-        cf = mean(fix_coords, dims=1)
-        R = compute_rotation(mov_coords, fix_coords)
-        X_mov = (X_mov .- cm) * R .+ cf
+        # Weighted Procrustes (anatomical=1.0, guide=0.1; all-equal weights = standard Procrustes)
+        R, cm, cf = compute_weighted_rotation(mov_coords, fix_coords, weights)
+        X_mov = (X_mov .- cm') * R .+ cf'
     end
 
     # Create moving point cloud (fixed cloud is pre-built)

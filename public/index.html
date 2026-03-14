@@ -27,6 +27,8 @@
                     Analysis
                 </button>
             </nav>
+            <button id="shortcuts-btn" class="btn-icon" title="Keyboard shortcuts"
+                onclick="document.getElementById('shortcuts-modal').classList.toggle('active')">⌨</button>
             <span class="version-badge">v1.0.0</span>
         </header>
 
@@ -76,6 +78,39 @@
                             </div>
                             <button id="reset-landmarks-btn" class="btn btn-warning btn-full" disabled>Reset
                                 Landmarks <span class="kbd">Bksp</span></button>
+                        </div>
+
+                        <!-- Guide Landmark (floating crosshair) -->
+                        <div class="panel-section">
+                            <div id="guide-landmark-controls">
+                                <button id="add-guide-btn" class="btn btn-secondary btn-full" disabled>
+                                    &#10010; Add Guide Landmark <span class="kbd">G</span>
+                                </button>
+                                <div id="guide-slider-panel" style="display:none;">
+                                    <div class="guide-slider-group">
+                                        <label style="color:#ff4444">X <span id="guide-x-val"
+                                                class="slider-value">0</span></label>
+                                        <input type="range" id="guide-x-slider" step="0.1">
+                                    </div>
+                                    <div class="guide-slider-group">
+                                        <label style="color:#44cc44">Y <span id="guide-y-val"
+                                                class="slider-value">0</span></label>
+                                        <input type="range" id="guide-y-slider" step="0.1">
+                                    </div>
+                                    <div class="guide-slider-group">
+                                        <label style="color:#4488ff">Z <span id="guide-z-val"
+                                                class="slider-value">0</span></label>
+                                        <input type="range" id="guide-z-slider" step="0.1">
+                                    </div>
+                                    <div class="guide-btn-row">
+                                        <button id="confirm-guide-btn" class="btn btn-success">✓ Confirm</button>
+                                        <button id="cancel-guide-btn" class="btn btn-warning">✕ Cancel</button>
+                                    </div>
+                                </div>
+                                <button id="remove-guide-btn" class="btn btn-warning btn-full" style="display:none;">
+                                    Remove Guide Landmark <span class="kbd">G</span>
+                                </button>
+                            </div>
                         </div>
 
 
@@ -288,6 +323,65 @@
                     <button id="select-directory-btn" class="btn btn-primary">Select This Folder</button>
                     <button class="btn btn-secondary modal-cancel">Cancel</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Keyboard Shortcuts Modal -->
+        <div id="shortcuts-modal" class="modal">
+            <div class="modal-content" style="max-width:420px;">
+                <h2
+                    style="margin-bottom:1rem;color:var(--accent-primary);font-size:1rem;text-transform:uppercase;letter-spacing:1px;text-align:center;">
+                    Keyboard Shortcuts</h2>
+                <table class="shortcuts-table">
+                    <tr>
+                        <td><span class="kbd">←</span> <span class="kbd">→</span></td>
+                        <td>Previous / Next model</td>
+                    </tr>
+                    <tr>
+                        <td><span class="kbd">Bksp</span></td>
+                        <td>Reset landmarks</td>
+                    </tr>
+                    <tr>
+                        <td><span class="kbd">R</span></td>
+                        <td>Set as reference</td>
+                    </tr>
+                    <tr>
+                        <td><span class="kbd">G</span></td>
+                        <td>Add / Remove guide landmark</td>
+                    </tr>
+                    <tr>
+                        <td><span class="kbd">Ctrl</span>+<span class="kbd">S</span></td>
+                        <td>Save all</td>
+                    </tr>
+                    <tr>
+                        <td><span class="kbd">Esc</span></td>
+                        <td>Close reference panel</td>
+                    </tr>
+
+                    <tr>
+                        <td><span class="kbd">X</span>+<span class="kbd">←→</span></td>
+                        <td>Nudge X axis</td>
+                    </tr>
+                    <tr>
+                        <td><span class="kbd">Y</span>+<span class="kbd">←→</span></td>
+                        <td>Nudge Y axis</td>
+                    </tr>
+                    <tr>
+                        <td><span class="kbd">Z</span>+<span class="kbd">←→</span></td>
+                        <td>Nudge Z axis</td>
+                    </tr>
+
+                    <tr>
+                        <td><span class="kbd">Enter</span></td>
+                        <td>Load pasted path</td>
+                    </tr>
+                    <tr>
+                        <td><span class="kbd">Shift</span>+<span class="kbd">?</span></td>
+                        <td>Toggle this window</td>
+                    </tr>
+                </table>
+                <button class="btn btn-secondary btn-full" style="margin-top:1rem;"
+                    onclick="document.getElementById('shortcuts-modal').classList.remove('active')">Close</button>
             </div>
         </div>
 

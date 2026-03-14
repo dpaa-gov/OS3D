@@ -80,8 +80,12 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ====== Keyboard Shortcuts ======
+const heldKeys = new Set();
+
 function initKeyboardShortcuts() {
     document.addEventListener('keydown', (e) => {
+        heldKeys.add(e.key.toLowerCase());
+
         // Don't trigger shortcuts when typing in input fields
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
@@ -90,6 +94,34 @@ function initKeyboardShortcuts() {
         if (!landmarksTab || !landmarksTab.classList.contains('active')) return;
 
         const key = e.key;
+
+        // Guide crosshair: X/Y/Z + Arrow keys to nudge slider
+        const guidePanel = document.getElementById('guide-slider-panel');
+        if (guidePanel && guidePanel.style.display !== 'none') {
+            let slider = null;
+            let valSpan = null;
+            if (heldKeys.has('x') && key.startsWith('Arrow')) {
+                slider = document.getElementById('guide-x-slider');
+                valSpan = document.getElementById('guide-x-val');
+            } else if (heldKeys.has('y') && key.startsWith('Arrow')) {
+                slider = document.getElementById('guide-y-slider');
+                valSpan = document.getElementById('guide-y-val');
+            } else if (heldKeys.has('z') && key.startsWith('Arrow')) {
+                slider = document.getElementById('guide-z-slider');
+                valSpan = document.getElementById('guide-z-val');
+            }
+            if (slider) {
+                e.preventDefault();
+                const step = parseFloat(slider.step) || 0.1;
+                const range = parseFloat(slider.max) - parseFloat(slider.min);
+                // Arrow Up/Right = increase, Down/Left = decrease
+                // Use 1% of range for a reasonable nudge
+                const nudge = (key === 'ArrowRight' || key === 'ArrowUp') ? range * 0.01 : -range * 0.01;
+                slider.value = parseFloat(slider.value) + nudge;
+                slider.dispatchEvent(new Event('input'));
+                return;
+            }
+        }
 
         // Arrow keys — navigate models
         if (key === 'ArrowLeft') {
@@ -115,6 +147,27 @@ function initKeyboardShortcuts() {
             return;
         }
 
+        // G — Toggle guide landmark (add or remove)
+        if (key === 'g' || key === 'G') {
+            const guidePanel = document.getElementById('guide-slider-panel');
+            const addBtn = document.getElementById('add-guide-btn');
+            const removeBtn = document.getElementById('remove-guide-btn');
+            // If slider panel is open, ignore G (use confirm/cancel)
+            if (guidePanel && guidePanel.style.display !== 'none') return;
+            // If guide exists, remove it
+            if (removeBtn && removeBtn.style.display !== 'none') {
+                e.preventDefault();
+                removeBtn.click();
+                return;
+            }
+            // Otherwise add guide
+            if (addBtn && !addBtn.disabled && addBtn.style.display !== 'none') {
+                e.preventDefault();
+                addBtn.click();
+                return;
+            }
+        }
+
         // R — Set as Reference
         if (key === 'r' || key === 'R') {
             e.preventDefault();
@@ -131,13 +184,36 @@ function initKeyboardShortcuts() {
             return;
         }
 
-        // Escape — Clear reference panel
-        if (key === 'Escape' && app.reference.isVisible) {
+        // ? — Toggle shortcuts modal
+        if (key === '?') {
             e.preventDefault();
-            hideReferencePanel();
+            const modal = document.getElementById('shortcuts-modal');
+            modal.classList.toggle('active');
             return;
         }
+
+        // Escape — Close reference panel or shortcuts modal
+        if (key === 'Escape') {
+            const shortcuts = document.getElementById('shortcuts-modal');
+            if (shortcuts && shortcuts.classList.contains('active')) {
+                e.preventDefault();
+                shortcuts.classList.remove('active');
+                return;
+            }
+            if (app.reference.isVisible) {
+                e.preventDefault();
+                hideReferencePanel();
+                return;
+            }
+        }
     });
+
+    document.addEventListener('keyup', (e) => {
+        heldKeys.delete(e.key.toLowerCase());
+    });
+
+    // Clear held keys on window blur to prevent stuck keys
+    window.addEventListener('blur', () => heldKeys.clear());
 }
 
 // ====== Tab Navigation ======
@@ -179,6 +255,15 @@ function initLandmarksTab() {
             document.getElementById('landmark-path'),
             (path) => loadLandmarkDirectory(path)
         );
+    });
+
+    // Enter key on path input — load directly
+    document.getElementById('landmark-path').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const path = e.target.value.trim();
+            if (path) loadLandmarkDirectory(path);
+        }
     });
 
     // Clear button
@@ -270,6 +355,9 @@ function initLandmarksTab() {
     sensitivitySlider.addEventListener('change', () => {
         sensitivitySlider.blur();
     });
+
+    // ── Guide Landmark Controls ──
+    initGuideLandmarkControls();
 }
 
 async function loadLandmarkDirectory(directory) {
@@ -342,6 +430,9 @@ async function loadLandmarkDirectory(directory) {
                         }
                         if (file.boundaryIndices && file.boundaryIndices.length > 0) {
                             app.landmarks.manager.setBoundaryIndices(file.boundaryIndices);
+                        }
+                        if (file.guideLandmark) {
+                            app.landmarks.manager.setGuideLandmark(file.guideLandmark);
                         }
                         processedPaths.add(file.plyPath);
                     }
@@ -435,6 +526,9 @@ async function loadCurrentModel() {
             autoDetectHoles(filepath);
         }
 
+        // Restore guide landmark if previously saved
+        restoreGuideLandmark();
+
         // NOW unblock clicks — all post-load state (nextLandmarkNumber etc.)
         // is synced. Before this point, loadModelFromPath intentionally
         // keeps isLoading=true to prevent phantom landmark placement.
@@ -483,6 +577,7 @@ function updateNavigationButtons() {
 
     document.getElementById('set-reference-btn').disabled = total === 0;
     document.getElementById('model-counter-input').disabled = total === 0;
+    document.getElementById('add-guide-btn').disabled = total === 0;
 }
 
 function updateLandmarkList() {
@@ -629,6 +724,133 @@ async function autoDetectHoles(filepath) {
     }
 }
 
+// ══════════════════════════════════════════════════════════════
+// Guide Landmark — Crosshair + X/Y/Z Sliders
+// ══════════════════════════════════════════════════════════════
+
+function initGuideLandmarkControls() {
+    const addBtn = document.getElementById('add-guide-btn');
+    const sliderPanel = document.getElementById('guide-slider-panel');
+    const confirmBtn = document.getElementById('confirm-guide-btn');
+    const cancelBtn = document.getElementById('cancel-guide-btn');
+    const removeBtn = document.getElementById('remove-guide-btn');
+    const xSlider = document.getElementById('guide-x-slider');
+    const ySlider = document.getElementById('guide-y-slider');
+    const zSlider = document.getElementById('guide-z-slider');
+    const xVal = document.getElementById('guide-x-val');
+    const yVal = document.getElementById('guide-y-val');
+    const zVal = document.getElementById('guide-z-val');
+
+    // Add Guide Landmark — show crosshair + sliders
+    addBtn.addEventListener('click', () => {
+        if (!app.landmarks.viewer || !app.landmarks.viewer.model) return;
+
+        const info = app.landmarks.viewer.showGuideCrosshair();
+        if (!info) return;
+
+        // Configure sliders from bounding box
+        xSlider.min = info.bbox.minX; xSlider.max = info.bbox.maxX; xSlider.value = info.x;
+        ySlider.min = info.bbox.minY; ySlider.max = info.bbox.maxY; ySlider.value = info.y;
+        zSlider.min = info.bbox.minZ; zSlider.max = info.bbox.maxZ; zSlider.value = info.z;
+        xVal.textContent = info.x.toFixed(1);
+        yVal.textContent = info.y.toFixed(1);
+        zVal.textContent = info.z.toFixed(1);
+
+        // Show sliders, hide add button
+        addBtn.style.display = 'none';
+        removeBtn.style.display = 'none';
+        sliderPanel.style.display = 'block';
+    });
+
+    // Slider input — update crosshair position in real time
+    const updateCrosshair = () => {
+        const x = parseFloat(xSlider.value);
+        const y = parseFloat(ySlider.value);
+        const z = parseFloat(zSlider.value);
+        xVal.textContent = x.toFixed(1);
+        yVal.textContent = y.toFixed(1);
+        zVal.textContent = z.toFixed(1);
+        app.landmarks.viewer.updateGuideCrosshairPosition(x, y, z);
+    };
+    xSlider.addEventListener('input', updateCrosshair);
+    ySlider.addEventListener('input', updateCrosshair);
+    zSlider.addEventListener('input', updateCrosshair);
+
+    // Never let arrow keys interact with sliders — always model navigation
+    const blockArrows = (e) => {
+        if (e.key.startsWith('Arrow')) {
+            e.target.blur();
+        }
+    };
+    xSlider.addEventListener('keydown', blockArrows);
+    ySlider.addEventListener('keydown', blockArrows);
+    zSlider.addEventListener('keydown', blockArrows);
+
+    // Release focus after drag so keys go back to model navigation
+    xSlider.addEventListener('change', () => xSlider.blur());
+    ySlider.addEventListener('change', () => ySlider.blur());
+    zSlider.addEventListener('change', () => zSlider.blur());
+
+    // Confirm — save guide landmark
+    confirmBtn.addEventListener('click', () => {
+        const guide = app.landmarks.viewer.confirmGuideLandmark();
+        if (guide) {
+            app.landmarks.manager.setGuideLandmark(guide);
+        }
+        sliderPanel.style.display = 'none';
+        addBtn.style.display = 'none';
+        removeBtn.style.display = 'block';
+    });
+
+    // Cancel — hide crosshair and sliders
+    cancelBtn.addEventListener('click', () => {
+        app.landmarks.viewer.hideGuideCrosshair();
+        sliderPanel.style.display = 'none';
+        // Show add button if no guide exists, otherwise show remove
+        const existing = app.landmarks.manager.getCurrentGuideLandmark();
+        addBtn.style.display = existing ? 'none' : 'block';
+        removeBtn.style.display = existing ? 'block' : 'none';
+    });
+
+    // Remove — delete confirmed guide landmark
+    removeBtn.addEventListener('click', () => {
+        app.landmarks.viewer.removeGuideLandmark();
+        app.landmarks.manager.removeGuideLandmark();
+        removeBtn.style.display = 'none';
+        addBtn.style.display = 'block';
+    });
+}
+
+/**
+ * Restore guide landmark visual when navigating to a model that has one saved.
+ */
+function restoreGuideLandmark() {
+    const addBtn = document.getElementById('add-guide-btn');
+    const removeBtn = document.getElementById('remove-guide-btn');
+    const sliderPanel = document.getElementById('guide-slider-panel');
+
+    // Remove any existing visual
+    if (app.landmarks.viewer) {
+        app.landmarks.viewer.removeGuideLandmark();
+    }
+
+    // Reset UI
+    sliderPanel.style.display = 'none';
+
+    const saved = app.landmarks.manager.getCurrentGuideLandmark();
+    if (saved && app.landmarks.viewer) {
+        // Re-create the visual by showing crosshair at saved position, then confirming
+        app.landmarks.viewer.showGuideCrosshair();
+        app.landmarks.viewer.updateGuideCrosshairPosition(saved.x, saved.y, saved.z);
+        app.landmarks.viewer.confirmGuideLandmark();
+        addBtn.style.display = 'none';
+        removeBtn.style.display = 'block';
+    } else {
+        addBtn.style.display = 'block';
+        removeBtn.style.display = 'none';
+    }
+}
+
 function clearLandmarkDirectory() {
     // Hide reference panel if open
     if (app.reference.isVisible) {
@@ -680,6 +902,11 @@ async function saveAllLandmarks() {
     if (app.landmarks.viewer) {
         const currentLandmarks = app.landmarks.viewer.getLandmarks();
         app.landmarks.manager.updateFromViewer(currentLandmarks);
+        // Also sync guide landmark
+        const guide = app.landmarks.viewer.getGuideLandmark();
+        if (guide) {
+            app.landmarks.manager.setGuideLandmark(guide);
+        }
     }
 
     const filesData = app.landmarks.manager.getAllFilesData();
@@ -783,6 +1010,7 @@ async function setCurrentAsReference() {
 
     // Get current landmarks from viewer
     const landmarks = app.landmarks.viewer ? app.landmarks.viewer.getLandmarks() : [];
+    const guideLandmark = app.landmarks.viewer ? app.landmarks.viewer.getGuideLandmark() : null;
 
     // Show panel
     showReferencePanel();
@@ -792,7 +1020,7 @@ async function setCurrentAsReference() {
     document.getElementById('ref-model-name').textContent = filename;
 
     // Load into reference viewer
-    await app.reference.viewer.loadReference(filepath, landmarks);
+    await app.reference.viewer.loadReference(filepath, landmarks, guideLandmark);
 }
 
 // ====== Analysis Tab ======
@@ -803,6 +1031,15 @@ function initAnalysisTab() {
             document.getElementById('analysis-path'),
             (path) => loadAnalysisDirectory(path)
         );
+    });
+
+    // Enter key on path input — load directly
+    document.getElementById('analysis-path').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const path = e.target.value.trim();
+            if (path) loadAnalysisDirectory(path);
+        }
     });
 
     // Clear button
