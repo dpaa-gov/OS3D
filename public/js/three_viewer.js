@@ -26,6 +26,11 @@ class ThreeViewer {
         // Boundary visualization
         this.boundaryIndices = [];
         this.originalVertexColors = false;
+        // Pan-tracking for guide crosshair
+        this._guideAnchorTarget = null;   // controls.target when crosshair shown / slider used
+        this._guideCrosshairBase = null;  // crosshair position at anchor time
+        this._controlsChangeHandler = null;
+        this.onGuideCrosshairMoved = null; // callback({x,y,z}) for slider sync
     }
 
     init() {
@@ -735,6 +740,12 @@ class ThreeViewer {
         const dot = new THREE.Mesh(dotGeo, dotMat);
         this._guideCrosshair.add(dot);
 
+        // ─── Pan-tracking: anchor controls.target so panning moves crosshair ───
+        this._guideAnchorTarget = this.controls.target.clone();
+        this._guideCrosshairBase = new THREE.Vector3(cx, cy, cz);
+        this._controlsChangeHandler = () => this._onControlsChange();
+        this.controls.addEventListener('change', this._controlsChangeHandler);
+
         return {
             x: cx, y: cy, z: cz,
             bbox: {
@@ -746,11 +757,34 @@ class ThreeViewer {
     }
 
     /**
+     * Called each frame controls emit 'change' — applies pan delta to crosshair
+     */
+    _onControlsChange() {
+        if (!this._guideCrosshair || !this._guideAnchorTarget) return;
+        const delta = new THREE.Vector3().subVectors(
+            this.controls.target, this._guideAnchorTarget
+        );
+        // Only act if there's meaningful pan movement
+        if (delta.lengthSq() < 1e-10) return;
+        const newPos = new THREE.Vector3().addVectors(this._guideCrosshairBase, delta);
+        this._guideCrosshair.position.copy(newPos);
+        // Notify app so sliders stay in sync
+        if (this.onGuideCrosshairMoved) {
+            this.onGuideCrosshairMoved({ x: newPos.x, y: newPos.y, z: newPos.z });
+        }
+    }
+
+    /**
      * Update crosshair position from sliders
      */
     updateGuideCrosshairPosition(x, y, z) {
         if (!this._guideCrosshair) return;
         this._guideCrosshair.position.set(x, y, z);
+        // Re-anchor so subsequent pans are relative to this slider position
+        if (this.controls) {
+            this._guideAnchorTarget = this.controls.target.clone();
+            this._guideCrosshairBase = new THREE.Vector3(x, y, z);
+        }
     }
 
     /**
@@ -860,6 +894,14 @@ class ThreeViewer {
      * Hide the crosshair (cancel or after confirm)
      */
     hideGuideCrosshair() {
+        // Remove pan-tracking listener
+        if (this._controlsChangeHandler && this.controls) {
+            this.controls.removeEventListener('change', this._controlsChangeHandler);
+            this._controlsChangeHandler = null;
+        }
+        this._guideAnchorTarget = null;
+        this._guideCrosshairBase = null;
+
         if (this._guideCrosshair) {
             this.scene.remove(this._guideCrosshair);
             // Dispose all children

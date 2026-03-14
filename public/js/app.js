@@ -748,6 +748,16 @@ function initGuideLandmarkControls() {
         const info = app.landmarks.viewer.showGuideCrosshair();
         if (!info) return;
 
+        // Wire pan-tracking callback — sync sliders when panning moves crosshair
+        app.landmarks.viewer.onGuideCrosshairMoved = (pos) => {
+            xSlider.value = pos.x;
+            ySlider.value = pos.y;
+            zSlider.value = pos.z;
+            xVal.textContent = pos.x.toFixed(1);
+            yVal.textContent = pos.y.toFixed(1);
+            zVal.textContent = pos.z.toFixed(1);
+        };
+
         // Configure sliders from bounding box
         xSlider.min = info.bbox.minX; xSlider.max = info.bbox.maxX; xSlider.value = info.x;
         ySlider.min = info.bbox.minY; ySlider.max = info.bbox.maxY; ySlider.value = info.y;
